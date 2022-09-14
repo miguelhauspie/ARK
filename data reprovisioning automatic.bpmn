@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:activiti="http://activiti.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" typeLanguage="http://www.w3.org/2001/XMLSchema" expressionLanguage="http://www.w3.org/1999/XPath" targetNamespace="http://www.collibra.com/apiv2">
+  <collaboration id="Collaboration">
+    <participant id="data_reprovisioning_workflow_automatic" name="Data Reprovisioning Workflow Automatic" processRef="data_reprovisioning_automatic"></participant>
+  </collaboration>
+  <process id="data_reprovisioning_automatic" name="data reprovisioning automatic" isExecutable="true">
+    <laneSet id="laneSet_data_reprovisioning_automatic">
+      <lane id="lane1">
+        <flowNodeRef>startevent1</flowNodeRef>
+        <flowNodeRef>dataset_access</flowNodeRef>
+        <flowNodeRef>reminder_data_access</flowNodeRef>
+        <flowNodeRef>endevent2</flowNodeRef>
+        <flowNodeRef>edit_ticket</flowNodeRef>
+        <flowNodeRef>update_status</flowNodeRef>
+        <flowNodeRef>endevent3</flowNodeRef>
+        <flowNodeRef>revoke_access</flowNodeRef>
+        <flowNodeRef>number_of_extensions</flowNodeRef>
+        <flowNodeRef>init_variables</flowNodeRef>
+        <flowNodeRef>nbr_extensions_reached</flowNodeRef>
+        <flowNodeRef>boundarytimer1</flowNodeRef>
+        <flowNodeRef>exclusivegateway3</flowNodeRef>
+        <flowNodeRef>boundarytimer2</flowNodeRef>
+        <flowNodeRef>boundarytimer3</flowNodeRef>
+        <flowNodeRef>request_access_gateway</flowNodeRef>
+        <flowNodeRef>sleep_remaining_time</flowNodeRef>
+      </lane>
+    </laneSet>
+    <startEvent id="startevent1" name="Start" activiti:initiator="role(Requester)">
+      <extensionElements>
+        <activiti:formProperty id="uuid_data_request_extension_pending" name="Please fill in the UUID of the status Data Request Extension Pending" type="string" default="86bcfb1a-7027-40a8-8414-e8074979ff8e" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_nr_of_extensions" name="Please fill in the UUID of the attribute Number of Data Request Extensions" type="string" default="a2e49066-4e8d-4a3d-9a85-0cd294e24b8e" readable="false" required="true"></activiti:formProperty>
+      </extensionElements>
+    </startEvent>
+    <userTask id="dataset_access" name="Dataset Access" activiti:candidateUsers="role(Requester)">
+      <documentation>&lt;br&gt;&lt;br&gt;Dear ${dataRequester_name},&lt;br&gt;&lt;br&gt;
+
+You were granted access to data set &lt;a href =${base_url}asset\${dataset}&gt;${dataset_name}&lt;/a&gt; &lt;b&gt;76 days&lt;/b&gt; ago. Would you like to extend this access? If yes, please click the button below to submit details for access extension.
+
+If you ignore this e-mail, your access will end in &lt;b&gt;14 days&lt;/b&gt;.</documentation>
+      <extensionElements>
+        <activiti:formProperty id="extend" name="Extend" type="button" default="false"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <userTask id="reminder_data_access" name="Reminder Data Access" activiti:candidateUsers="role(Requester)">
+      <documentation>&lt;br&gt;&lt;br&gt;Dear ${dataRequester_name},&lt;br&gt;&lt;br&gt;
+
+You were granted access to data set &lt;a href =${base_url}asset\${dataset}&gt;${dataset_name}&lt;/a&gt; &lt;b&gt;85 days&lt;/b&gt; ago. Would you like to extend this access? If yes, please click the button below to submit details for access extension.
+
+If you ignore this e-mail, your access will end in &lt;b&gt;5 days&lt;/b&gt;.</documentation>
+      <extensionElements>
+        <activiti:formProperty id="extend" name="Extend" type="button" default="false"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <callActivity id="edit_ticket" name="Edit Ticket" calledElement="EditRequestDataSetsAccess">
+      <extensionElements>
+        <activiti:in source="requester_username" target="requester"></activiti:in>
+        <activiti:out source="pii_changed" target="pii_changed"></activiti:out>
+      </extensionElements>
+    </callActivity>
+    <endEvent id="endevent2" name="End"></endEvent>
+    <scriptTask id="update_status" name="Update Status" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest
+
+loggerApi.info("&lt;&lt;Change Asset: start")
+
+//status
+assetApi.changeAsset(ChangeAssetRequest.builder()
+	.statusId(string2Uuid(uuid_data_request_extension_pending))
+	.id(item.id)
+	.build())
+
+loggerApi.info("&lt;&lt;Change Asset: end")</script>
+    </scriptTask>
+    <sequenceFlow id="flow14" sourceRef="update_status" targetRef="edit_ticket"></sequenceFlow>
+    <endEvent id="endevent3" name="End"></endEvent>
+    <scriptTask id="revoke_access" name="Revoke Access" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>//import com.collibra.dgc.core.api.model.workflow.WorkflowBusinessItemType
+import com.collibra.dgc.core.api.dto.instance.relation.FindRelationsRequest
+
+loggerApi.info("&lt;&lt;Revoke Acces: start")
+
+execution.setVariable("type", "Delete")
+
+def dataset = ""
+//def dataRequester_name = userApi.getUserByUsername(requester).getFirstName() + " " + userApi.getUserByUsername(requester).getLastName()
+
+//get dataset related to the ticket
+def existingRelations = relationApi.findRelations(FindRelationsRequest.builder()
+															.relationTypeId(string2Uuid("00000000-0000-0000-0000-000000007015"))
+															.targetId(item.id)
+															.build()
+															).getResults()
+if (existingRelations)
+	{
+		dataset = existingRelations.get(0).getSource().getId()
+		loggerApi.info("--dataset:" + dataset)
+	}
+execution.setVariable("dataset", dataset)
+
+
+loggerApi.info("&lt;&lt;Revoke Access: end")</script>
+    </scriptTask>
+    <scriptTask id="number_of_extensions" name="Number of Extensions" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.dto.instance.attribute.FindAttributesRequest
+
+loggerApi.info("&lt;&lt;Number of Extensions: start")
+
+def extensions = 0
+
+//Get the number of extensions and add 1 if it already exists; If not it will become 0
+if(!attributeApi.findAttributes(FindAttributesRequest.builder()
+										.assetId(item.id)
+										.typeIds([string2Uuid(uuid_nr_of_extensions)])
+										.build()
+										).getResults().isEmpty())
+	{
+		extensions = attributeApi.findAttributes(FindAttributesRequest.builder()
+										.assetId(item.id)
+										.typeIds([string2Uuid(uuid_nr_of_extensions)])
+										.build()
+										).getResults().get(0).getValue()
+	}
+	else
+	{
+		extensions = 0
+	}
+	
+	execution.setVariable("extensions", extensions)
+	
+loggerApi.info("&lt;&lt;Number of Extensions: End")</script>
+    </scriptTask>
+    <userTask id="nbr_extensions_reached" name="Maximum number of extensions reached" activiti:candidateUsers="role(Requester)">
+      <documentation>Dear ${dataRequester_name},&lt;br&gt;&lt;br&gt;
+Your access will be revoked within 14 days for dataset ${dataset_name} , since the maximum number of data extensions for the dataset has been reached (3 times). You can not longer extend it.</documentation>
+      <extensionElements>
+        <activiti:formProperty id="ok" name="OK" type="button"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <scriptTask id="init_variables" name="Init Variables" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.dto.instance.relation.FindRelationsRequest
+import com.collibra.dgc.core.api.dto.instance.responsibility.FindResponsibilitiesRequest
+
+loggerApi.info("&lt;&lt;Init Variables: start")
+
+
+//Get the data requester
+def requester = userApi.getUser(responsibilityApi.findResponsibilities(FindResponsibilitiesRequest.builder()
+															.resourceIds([item.id])
+															.roleIds([string2Uuid("00000000-0000-0000-0000-000000005033")]) //Requester
+															.build()
+															).getResults().get(0).getOwner().getId())
+	
+
+def dataRequester_name = requester.getFirstName() + " " + requester.getLastName()
+execution.setVariable("dataRequester_name", dataRequester_name)
+execution.setVariable("requester", requester)
+execution.setVariable("requester_username", requester.getUserName())
+execution.setVariable("base_url",applicationApi.getInfo().getBaseUrl())
+
+
+
+//get dataset related to the ticket
+def existingRelations = relationApi.findRelations(FindRelationsRequest.builder()
+															.relationTypeId(string2Uuid("00000000-0000-0000-0000-000000007015"))
+															.targetId(item.id)
+															.build()
+															).getResults()
+															
+loggerApi.info("existingRelations:" + existingRelations)
+															
+															
+if (existingRelations)
+{
+	dataset = existingRelations.get(0).getSource().getId()
+	loggerApi.info("--dataset:" + dataset)
+	execution.setVariable("dataset", dataset)
+}
+
+
+def dataset_name =  assetApi.getAsset(dataset).getName()
+execution.setVariable("dataset_name", dataset_name)
+
+//set initial time
+Date start_date = new Date()
+execution.setVariable("start_date", start_date)
+
+
+
+loggerApi.info("&lt;&lt;Init Variables: End")</script>
+    </scriptTask>
+    <sequenceFlow id="flow26" sourceRef="startevent1" targetRef="init_variables"></sequenceFlow>
+    <sequenceFlow id="flow29" sourceRef="init_variables" targetRef="number_of_extensions"></sequenceFlow>
+    <sequenceFlow id="flow32" sourceRef="edit_ticket" targetRef="endevent2"></sequenceFlow>
+    <boundaryEvent id="boundarytimer1" name="Timer" attachedToRef="dataset_access" cancelActivity="true">
+      <timerEventDefinition>
+        <timeDuration>PT3600S</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <exclusiveGateway id="exclusivegateway3" name="Exclusive Gateway"></exclusiveGateway>
+    <sequenceFlow id="flow35" sourceRef="number_of_extensions" targetRef="exclusivegateway3"></sequenceFlow>
+    <sequenceFlow id="flow37" sourceRef="exclusivegateway3" targetRef="nbr_extensions_reached">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${extensions>=3}]]></conditionExpression>
+    </sequenceFlow>
+    <boundaryEvent id="boundarytimer2" name="Timer" attachedToRef="reminder_data_access" cancelActivity="true">
+      <timerEventDefinition>
+        <timeDuration>PT3600S</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <boundaryEvent id="boundarytimer3" name="Timer" attachedToRef="nbr_extensions_reached" cancelActivity="true">
+      <timerEventDefinition>
+        <timeDuration>PT3600S</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="flow49" sourceRef="dataset_access" targetRef="update_status"></sequenceFlow>
+    <sequenceFlow id="flow50" sourceRef="boundarytimer2" targetRef="revoke_access"></sequenceFlow>
+    <sequenceFlow id="flow51" sourceRef="boundarytimer1" targetRef="reminder_data_access"></sequenceFlow>
+    <sequenceFlow id="flow55" sourceRef="reminder_data_access" targetRef="update_status"></sequenceFlow>
+    <callActivity id="request_access_gateway" name="Request Access Gateway" calledElement="RequestAccessGatewayElsevier">
+      <extensionElements>
+        <activiti:in source="requester_username" target="requester"></activiti:in>
+        <activiti:in sourceExpression="${uuid2String(dataset)}" target="dataset_uuid"></activiti:in>
+        <activiti:in sourceExpression="${assetApi.getAsset(dataset).getName()}" target="dataset_name"></activiti:in>
+        <activiti:in source="dataRequester_name" target="dataRequester_name"></activiti:in>
+        <activiti:in sourceExpression="${uuid2String(item.id)}" target="assetId"></activiti:in>
+      </extensionElements>
+    </callActivity>
+    <sequenceFlow id="flow56" sourceRef="revoke_access" targetRef="request_access_gateway"></sequenceFlow>
+    <sequenceFlow id="flow57" sourceRef="request_access_gateway" targetRef="endevent3"></sequenceFlow>
+    <scriptTask id="sleep_remaining_time" name="Sleep Remaining Time" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import groovy.time.TimeCategory
+import groovy.time.TimeDuration
+
+loggerApi.info("&lt;&lt;Sleep remaining time: start")
+
+//current date
+Date end_date = new Date()
+
+execution.setVariable("end_date", end_date)
+
+//We will have a look how long it is ago that this process started
+TimeDuration elapsed_time = TimeCategory.minus(end_date, start_date)
+long elapsed_time_ms
+
+
+elapsed_time_ms = elapsed_time.getDays() * 86400000
+elapsed_time_ms = elapsed_time_ms + elapsed_time.getHours() * 3600000
+elapsed_time_ms = elapsed_time_ms + elapsed_time.getMinutes() * 60000
+elapsed_time_ms = elapsed_time_ms + elapsed_time.getSeconds() * 1000
+elapsed_time_ms = elapsed_time_ms + elapsed_time.getMillis()
+
+
+loggerApi.info("--elapsed_time:" + elapsed_time_ms.toString())
+
+//remaining_time = 1209600000 - elapsed_time //in real life this is 14 days instead of 60sec
+remaining_time = 60000 - elapsed_time_ms
+sleep(remaining_time)
+
+
+loggerApi.info("&lt;&lt;Sleep remaining time: End")</script>
+    </scriptTask>
+    <sequenceFlow id="flow58" sourceRef="boundarytimer3" targetRef="revoke_access"></sequenceFlow>
+    <sequenceFlow id="flow59" sourceRef="nbr_extensions_reached" targetRef="sleep_remaining_time"></sequenceFlow>
+    <sequenceFlow id="flow60" sourceRef="sleep_remaining_time" targetRef="revoke_access"></sequenceFlow>
+    <sequenceFlow id="flow61" sourceRef="exclusivegateway3" targetRef="dataset_access">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${extensions < 3}]]></conditionExpression>
+    </sequenceFlow>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Collaboration">
+    <bpmndi:BPMNPlane bpmnElement="Collaboration" id="BPMNPlane_Collaboration">
+      <bpmndi:BPMNShape bpmnElement="data_reprovisioning_workflow_automatic" id="BPMNShape_data_reprovisioning_workflow_automatic">
+        <omgdc:Bounds height="421.0" width="1531.0" x="160.0" y="150.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="lane1" id="BPMNShape_lane1">
+        <omgdc:Bounds height="421.0" width="1511.0" x="180.0" y="150.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent1" id="BPMNShape_startevent1">
+        <omgdc:Bounds height="35.0" width="35.0" x="200.0" y="280.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="dataset_access" id="BPMNShape_dataset_access">
+        <omgdc:Bounds height="55.0" width="105.0" x="528.0" y="270.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="boundarytimer1" id="BPMNShape_boundarytimer1">
+        <omgdc:Bounds height="30.0" width="30.0" x="618.0" y="310.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="reminder_data_access" id="BPMNShape_reminder_data_access">
+        <omgdc:Bounds height="71.0" width="105.0" x="700.0" y="350.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="boundarytimer2" id="BPMNShape_boundarytimer2">
+        <omgdc:Bounds height="30.0" width="30.0" x="790.0" y="410.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="edit_ticket" id="BPMNShape_edit_ticket">
+        <omgdc:Bounds height="55.0" width="105.0" x="1380.0" y="270.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent2" id="BPMNShape_endevent2">
+        <omgdc:Bounds height="35.0" width="35.0" x="1550.0" y="280.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="update_status" id="BPMNShape_update_status">
+        <omgdc:Bounds height="55.0" width="105.0" x="1200.0" y="270.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent3" id="BPMNShape_endevent3">
+        <omgdc:Bounds height="35.0" width="35.0" x="1415.0" y="468.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="revoke_access" id="BPMNShape_revoke_access">
+        <omgdc:Bounds height="55.0" width="105.0" x="1020.0" y="460.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="number_of_extensions" id="BPMNShape_number_of_extensions">
+        <omgdc:Bounds height="71.0" width="105.0" x="410.0" y="173.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="nbr_extensions_reached" id="BPMNShape_nbr_extensions_reached">
+        <omgdc:Bounds height="91.0" width="105.0" x="640.0" y="162.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="boundarytimer3" id="BPMNShape_boundarytimer3">
+        <omgdc:Bounds height="30.0" width="30.0" x="720.0" y="228.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="init_variables" id="BPMNShape_init_variables">
+        <omgdc:Bounds height="55.0" width="105.0" x="270.0" y="181.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway3" id="BPMNShape_exclusivegateway3">
+        <omgdc:Bounds height="40.0" width="40.0" x="560.0" y="188.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="request_access_gateway" id="BPMNShape_request_access_gateway">
+        <omgdc:Bounds height="91.0" width="105.0" x="1200.0" y="440.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="sleep_remaining_time" id="BPMNShape_sleep_remaining_time">
+        <omgdc:Bounds height="71.0" width="105.0" x="830.0" y="170.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="flow14" id="BPMNEdge_flow14">
+        <omgdi:waypoint x="1305.0" y="297.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1380.0" y="297.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow26" id="BPMNEdge_flow26">
+        <omgdi:waypoint x="217.0" y="280.0"></omgdi:waypoint>
+        <omgdi:waypoint x="217.0" y="208.0"></omgdi:waypoint>
+        <omgdi:waypoint x="270.0" y="208.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow29" id="BPMNEdge_flow29">
+        <omgdi:waypoint x="375.0" y="208.0"></omgdi:waypoint>
+        <omgdi:waypoint x="410.0" y="208.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow32" id="BPMNEdge_flow32">
+        <omgdi:waypoint x="1485.0" y="297.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1550.0" y="297.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow35" id="BPMNEdge_flow35">
+        <omgdi:waypoint x="515.0" y="208.0"></omgdi:waypoint>
+        <omgdi:waypoint x="560.0" y="208.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow37" id="BPMNEdge_flow37">
+        <omgdi:waypoint x="600.0" y="208.0"></omgdi:waypoint>
+        <omgdi:waypoint x="640.0" y="207.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow49" id="BPMNEdge_flow49">
+        <omgdi:waypoint x="633.0" y="297.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1200.0" y="297.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow50" id="BPMNEdge_flow50">
+        <omgdi:waypoint x="805.0" y="440.0"></omgdi:waypoint>
+        <omgdi:waypoint x="804.0" y="487.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1020.0" y="487.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow51" id="BPMNEdge_flow51">
+        <omgdi:waypoint x="633.0" y="340.0"></omgdi:waypoint>
+        <omgdi:waypoint x="632.0" y="385.0"></omgdi:waypoint>
+        <omgdi:waypoint x="700.0" y="385.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow55" id="BPMNEdge_flow55">
+        <omgdi:waypoint x="805.0" y="385.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1252.0" y="385.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1252.0" y="325.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow56" id="BPMNEdge_flow56">
+        <omgdi:waypoint x="1125.0" y="487.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1200.0" y="485.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow57" id="BPMNEdge_flow57">
+        <omgdi:waypoint x="1305.0" y="485.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1415.0" y="485.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow58" id="BPMNEdge_flow58">
+        <omgdi:waypoint x="735.0" y="258.0"></omgdi:waypoint>
+        <omgdi:waypoint x="734.0" y="326.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1071.0" y="326.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1072.0" y="460.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow59" id="BPMNEdge_flow59">
+        <omgdi:waypoint x="745.0" y="207.0"></omgdi:waypoint>
+        <omgdi:waypoint x="830.0" y="205.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow60" id="BPMNEdge_flow60">
+        <omgdi:waypoint x="935.0" y="205.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1072.0" y="205.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1072.0" y="460.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow61" id="BPMNEdge_flow61">
+        <omgdi:waypoint x="580.0" y="228.0"></omgdi:waypoint>
+        <omgdi:waypoint x="580.0" y="270.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

@@ -1,0 +1,1269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:activiti="http://activiti.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" typeLanguage="http://www.w3.org/2001/XMLSchema" expressionLanguage="http://www.w3.org/1999/XPath" targetNamespace="http://www.collibra.com/apiv2">
+  <collaboration id="Collaboration">
+    <participant id="pool1" name="Request Assets Access" processRef="RequestDataSetsAccess"></participant>
+  </collaboration>
+  <message id="gatewayMessageId" name="connectEvent"></message>
+  <process id="RequestDataSetsAccess" name="Request Assets Access" isExecutable="true">
+    <documentation>[Elsevier] Use this flow to request access to all assets referenced in this shopping cart. The owners of the related data will have to approve the request.</documentation>
+    <laneSet id="laneSet_RequestDataSetsAccess">
+      <lane id="lane1" name="Requester">
+        <flowNodeRef>startevent1</flowNodeRef>
+        <flowNodeRef>initDataUsageRequest</flowNodeRef>
+        <flowNodeRef>generateDataUsageName</flowNodeRef>
+        <flowNodeRef>assignRequesterRoleToDataUsage</flowNodeRef>
+        <flowNodeRef>identifyReportsAndDataSets</flowNodeRef>
+        <flowNodeRef>subprocess1</flowNodeRef>
+        <flowNodeRef>data_access_ticket</flowNodeRef>
+        <flowNodeRef>endevent5</flowNodeRef>
+        <flowNodeRef>boundarytimer1</flowNodeRef>
+        <flowNodeRef>exclusivegateway7</flowNodeRef>
+        <flowNodeRef>endevent6</flowNodeRef>
+        <flowNodeRef>no_datasets</flowNodeRef>
+        <flowNodeRef>define_message</flowNodeRef>
+      </lane>
+    </laneSet>
+    <startEvent id="startevent1" name="Start" activiti:initiator="requester" activiti:formKey="create_data_set_usage_request">
+      <extensionElements>
+        <activiti:formProperty id="instructions" name="Instructions" type="plainText" default="This flow will guide you through the assets access request process. The information you fill in on the following form(s) will be used to review and evaluate your request. Click Start to begin." writable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="start" name="Start" type="button" default="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="inProgressStatusTypeUuid" name="In Progress Status Type UUID" type="string" default="00000000-0000-0000-0000-000000005019" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="candidateStatusTypeUuid" name="Candidate Status Type UUID" default="00000000-0000-0000-0000-000000005008" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="assetIsEssentialForDataUsageRelationTypeUuid" name="Asset Is Essential For Data Usage Relation Type UUID" type="string" default="00000000-0000-0000-0000-000000007061" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="dataAssetGroupsDataAssetRelationTypeUuid" name="Data Asset Groups Data Asset Relation Type UUID" type="string" default="00000000-0000-0000-0000-000000007017" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="reportAssetTypeUuid" name="Report Asset Type UUID" type="string" default="00000000-0000-0000-0000-000000031102" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="dataSetAssetTypeUuid" name="Data Set Asset Type UUID" type="string" default="00000000-0000-0000-0001-000400000001" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="requesterRoleTypeUuid" name="Requester Role Type UUID" type="string" default="00000000-0000-0000-0000-000000005033" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="effectiveStartDateAttributeTypeUuid" name="Effective Start Date Attribute Type UUID" type="string" default="00000000-0000-0000-0000-000000000257" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="effectiveEndDataAttributeTypeUuid" name="Effective End Data Attribute Type UUID" type="string" default="00000000-0000-0000-0000-000000000254" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="businessUnitAffiliationAttributeTypeUuid" name="Business Unit Affiliation Attribute Type UUID" type="string" default="bfbbb62e-2768-448c-a81d-769ad258bc4e" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="roleAttributeTypeUuid" name="Role Attribute Type UUID" type="string" default="27d56e0c-579b-461b-8e90-1d64713f5422" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="approvalPendingStatusTypeUuid" name="Approval Pending Status Type UUID" type="string" default="00000000-0000-0000-0000-000000005023" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="submittedForApprovalStatusTypeUuid" name="Submitted For Approval Status Type UUID" type="string" default="00000000-0000-0000-0000-000000005060" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_data_request_ticket" name="Please fill in the UUID of the custom asset type 'Data Request Ticket'" type="string" default="6386dce2-b559-49d4-b4e7-cd9f3f9b561d" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="purpose_for_access" name="Please fill in the UUID of the attribute 'Purpose For Access'" type="string" default="90473311-db98-4782-b36f-65ce9b3787b4" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_business_justification" name="Please fill int he UUID of the attribute 'Business Justification'" type="string" default="5304d06a-31da-4511-9f7b-a5fb3aac07fa" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_business_justification_pii" name="Please fill int he UUID for the attribute 'Business Justification PII'" type="string" default="1655f7e2-a6be-4c7f-8f10-74ff7b5b1b51" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_used_tools" name="Please fill in the UUID of the asset type: Tools I am planning to use" type="string" default="410f7021-90c0-458d-922b-11a2cf05bf75" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_access_with_pii" name="Please fill in the UUID of the attribute 'Access with PII'" type="string" default="9e0117c4-ad17-458b-93fc-ba4d1547e058" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_data_helpdesk_view" name="Please fill in the UUID of the view created for data reqeust tickets in the helpdesk" type="string" default="da8df5f1-d457-4293-bb60-a7a5d3de5430" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_applies_to_governed_by_relation" name="Please fill in the UUID of the relation Governance Asset applies to - governed by data asset" type="string" default="8743ad03-b04b-493f-85b6-4d13c4e824a3" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_policy_covers_pii" name="Please fill in the UUID of the attribute Policy Covers PII" type="string" default="5c7f92c4-6575-4e7d-bb7b-036218010888" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_data_owner_responsibility" name="Please fill in the UUID of the responsibility Data Owner" type="string" default="433308b4-dbe0-40af-95d7-b34ad207abbe" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_relation_ticket_pii_column" name="Please fill in the UIID of the relation - Includes PII Column&gt; - &lt;Is related PII Column For" type="string" default="f979adb6-68ab-474e-bf3c-80eaaef189dd" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_sensitive_data_obscured" name="Please fill in the UUID of the attribute Sensitive Data Obscured" type="string" default="0b6269a2-dda8-445d-97dc-7c6519471607" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_relation_security_asset" name="please fill in the uuid of the relation secured by security asset" type="string" default="0c0b2c75-77f3-4099-9c9c-77a7981aad60" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_role_data_analyst" name="Please fill in the UUID of the role 'Data Analyst'" type="string" default="a723b1c6-54f6-4f3d-ba9b-48c11c515928" readable="false" required="true"></activiti:formProperty>
+      </extensionElements>
+    </startEvent>
+    <scriptTask id="initDataUsageRequest" name="Init data usage request" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.model.instance.Asset
+import com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest
+import com.collibra.dgc.workflow.api.exception.WorkflowException
+
+loggerApi.info("&lt;&lt;initDataUsageRequest: start")
+
+//STATUS_IN_PROGRESS = string2Uuid(inProgressStatusTypeUuid)
+STATUS_CANDIDATE = string2Uuid(candidateStatusTypeUuid)
+
+if (item == null) {
+  loggerApi.error("Cannot execute workflow. The context doesn't provide a valid Data Usage asset (no item)")
+  throw new WorkflowException(translation.getMessage("workflowNoValidDataUsage"))
+}
+if (item.id == null) {
+  loggerApi.error("Cannot execute workflow. The context doesn't provide a valid Data Usage asset (item id is null)")
+  throw new WorkflowException(translation.getMessage("workflowNoValidDataUsage"))
+}
+
+Asset usage = assetApi.getAsset(item.getId())
+validateStatus(usage)
+
+String dataUsageName = execution.getVariable("dataUsageName")
+assetApi.changeAsset(ChangeAssetRequest.builder()
+	.name(dataUsageName)
+	.displayName(dataUsageName)
+	//.statusId(STATUS_IN_PROGRESS)
+	.id(item.id)
+	.build())
+
+execution.setVariable("dataUsage", usage)
+
+def validateStatus(Asset usage) {
+  if (usage.status.id != STATUS_CANDIDATE) {
+	loggerApi.error("User tried to start a data usage request workflow on a data usage asset whose status is not 'Candidate'.")
+	throw new WorkflowException(translation.getMessage("workflowDataUsageWrongStatus"))
+  }
+}
+
+loggerApi.info("&lt;&lt;initDataUsageRequest: end")
+</script>
+    </scriptTask>
+    <scriptTask id="generateDataUsageName" name="Generate data usage name" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import java.time.format.DateTimeFormatter
+import java.time.LocalDate
+import com.collibra.dgc.core.api.dto.instance.asset.FindAssetsRequest
+import com.collibra.dgc.core.api.dto.MatchMode
+import com.collibra.dgc.core.api.model.instance.Asset
+
+loggerApi.info("&lt;&lt;Generate data usage name: start")
+
+
+def getDateString() {
+  formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+  LocalDate date = LocalDate.now()
+  return date.format(formatter)
+}
+
+private int getCounter(String prefix) {
+  // find all data usage requests for today
+  // Remark: we can't have 2 assets of the same name in a single domain
+  // must not check the type since another asset of another type might have a matching name (unlikely)
+
+  List result = assetApi.findAssets(FindAssetsRequest.builder().communityId(item.communityId).domainId(item.domainId).name(prefix).nameMatchMode(MatchMode.START).excludeMeta(false).limit(Integer.MAX_VALUE).build()).getResults();
+  // find the index of the latest data usage request for today
+  int maxIndex = 0;
+  for (Asset asset: result) {
+	String name = asset.getName()
+	int crossIndex = name.indexOf("#")
+	if (crossIndex &gt; -1) {
+	  int index = name.substring(crossIndex + 1) as Integer
+	  maxIndex = Math.max(maxIndex, index)
+	}
+  }
+
+  return maxIndex + 1;
+}
+
+String dateString = getDateString()
+String prefix = dateString + " #"
+int counter = getCounter(prefix)
+String result = prefix + counter
+execution.setVariable("dataUsageName", result)
+loggerApi.debug("name set to ${result}")
+
+loggerApi.info("&lt;&lt;Generate data usage name: End")</script>
+    </scriptTask>
+    <sequenceFlow id="flow23" sourceRef="generateDataUsageName" targetRef="initDataUsageRequest"></sequenceFlow>
+    <scriptTask id="assignRequesterRoleToDataUsage" name="Assign requester role to data usage" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest
+import com.collibra.dgc.core.api.dto.user.FindUsersRequest
+
+loggerApi.info("&lt;&lt;Assign requester role to data usage: start")
+
+REQUESTER_ROLE_ID = string2Uuid(requesterRoleTypeUuid)
+
+def user = userApi.findUsers(FindUsersRequest.builder().name(requester).build()).getResults().first()
+def dataSetDataUsage = execution.getVariable("dataSetDataUsage")
+def reportDataUsage = execution.getVariable("reportDataUsage")
+def containsDataSets = execution.getVariable("containsDataSets")
+def containsReports = execution.getVariable("containsReports")
+
+responsibilityApi.addResponsibility(AddResponsibilityRequest.builder().ownerId(user.id).resourceId(item.id).roleId(REQUESTER_ROLE_ID).resourceType(item.type).build())
+
+if (containsDataSets) {
+  responsibilityApi.addResponsibility(AddResponsibilityRequest.builder().ownerId(user.id).resourceId(dataSetDataUsage).roleId(REQUESTER_ROLE_ID).resourceType(item.type).build())
+}
+
+if (containsReports) {
+  responsibilityApi.addResponsibility(AddResponsibilityRequest.builder().ownerId(user.id).resourceId(reportDataUsage).roleId(REQUESTER_ROLE_ID).resourceType(item.type).build())
+}
+
+loggerApi.info("&lt;&lt;Assign requester role to data usage: end")
+</script>
+    </scriptTask>
+    <scriptTask id="identifyReportsAndDataSets" name="Identify reports and data sets" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.dto.instance.asset.AddAssetRequest
+import com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest
+import com.collibra.dgc.core.api.dto.instance.relation.ChangeRelationRequest
+import com.collibra.dgc.core.api.dto.instance.relation.FindRelationsRequest
+import com.collibra.dgc.core.api.dto.meta.assettype.FindSubAssetTypesRequest
+import com.collibra.dgc.workflow.api.exception.WorkflowException
+
+
+loggerApi.info("&lt;&lt;Identify reports and data sets: start")
+
+def dataUsage = execution.getVariable("dataUsage")
+def usageType = dataUsage.getType().getId()
+def usageId = item.id
+def usageName = item.name
+def usageDomain = item.domainId
+def dataSetDataUsage
+def reportDataUsage
+def datasetArray = []
+
+
+
+ASSET_IS_ESSENTIAL_FOR_DATA_USAGE = string2Uuid(assetIsEssentialForDataUsageRelationTypeUuid)
+DATA_ASSET_GROUPS_DATA_ASSET = string2Uuid(dataAssetGroupsDataAssetRelationTypeUuid)
+REPORT_ASSET_TYPE_ID = string2Uuid(reportAssetTypeUuid)
+DATA_SET_ASSET_TYPE_ID = string2Uuid(dataSetAssetTypeUuid)
+
+def relations = relationApi.findRelations(FindRelationsRequest.builder().targetId(usageId).relationTypeId(ASSET_IS_ESSENTIAL_FOR_DATA_USAGE).limit(Integer.MAX_VALUE).build()).getResults()
+def findReportsChildrenAssetTypesRequest = FindSubAssetTypesRequest.builder().includeParent(true).assetTypeId(REPORT_ASSET_TYPE_ID).build()
+def findDataSetChildrenAssetTypesRequests = FindSubAssetTypesRequest.builder().includeParent(true).assetTypeId(DATA_SET_ASSET_TYPE_ID).build()
+def reportChildrenTypes = assetTypeApi.findSubTypes(findReportsChildrenAssetTypesRequest).collect {
+  it.getId()
+}
+def dataSetChildrenTypes = assetTypeApi.findSubTypes(findDataSetChildrenAssetTypesRequests).collect {
+  it.getId()
+}
+
+relations.each {
+  def source = it.getSource()
+  
+  
+  //We make an array of all requested datasets
+  datasetArray.add(source.id)
+  loggerApi.info("--datasetArray: " + datasetArray)
+  
+  def sourceAssetTypeId = assetApi.getAsset(source.id).getType().getId()
+  if (sourceAssetTypeId in dataSetChildrenTypes) {
+
+	if (dataSetDataUsage == null) {
+
+	  //dataSetDataUsage = assetApi.addAsset(AddAssetRequest.builder().name("Data Sets " + usageName).displayName("Data Sets " + usageName).typeId(usageType).domainId(usageDomain).build()).getId()
+	  //relationApi.addRelation(AddRelationRequest.builder().sourceId(usageId).targetId(dataSetDataUsage).typeId(DATA_ASSET_GROUPS_DATA_ASSET).build())
+	}
+
+	//relationApi.changeRelation(ChangeRelationRequest.builder().id(it.getId()).targetId(dataSetDataUsage).build())
+
+  } else if (sourceAssetTypeId in reportChildrenTypes) {
+	if (reportDataUsage == null) {
+
+	 // reportDataUsage = assetApi.addAsset(AddAssetRequest.builder().name("Reports " + usageName).displayName("Reports " + usageName).typeId(usageType).domainId(usageDomain).build()).getId()
+	  //relationApi.addRelation(AddRelationRequest.builder().sourceId(usageId).targetId(reportDataUsage).typeId(DATA_ASSET_GROUPS_DATA_ASSET).build())
+
+	}
+
+	//relationApi.changeRelation(ChangeRelationRequest.builder().id(it.getId()).targetId(reportDataUsage).build())
+	
+
+	  
+  } else {
+	throw new WorkflowException(translation.getMessage("dataBasketUnsupportedAssetType", sourceAssetTypeId))
+  }
+}
+
+execution.setVariable("dataSetDataUsage", dataSetDataUsage)
+execution.setVariable("reportDataUsage", reportDataUsage)
+execution.setVariable("containsDataSets", dataSetDataUsage != null)
+execution.setVariable("containsReports", reportDataUsage != null)
+execution.setVariable("datasetArray", datasetArray)
+
+loggerApi.info("&lt;&lt;Identify reports and data sets: end")
+</script>
+    </scriptTask>
+    <sequenceFlow id="flow45" sourceRef="identifyReportsAndDataSets" targetRef="assignRequesterRoleToDataUsage"></sequenceFlow>
+    <sequenceFlow id="flow73" sourceRef="initDataUsageRequest" targetRef="identifyReportsAndDataSets"></sequenceFlow>
+    <subProcess id="subprocess1" name="Sub Process">
+      <multiInstanceLoopCharacteristics isSequential="true" activiti:collection="datasetArray" activiti:elementVariable="dataset"></multiInstanceLoopCharacteristics>
+      <userTask id="dataSetAccessRequestPII" name="Data Set Request form: ${assetApi.getAsset(dataset).getName()}" activiti:candidateUsers="user(${requester})">
+        <documentation>&lt;span style="color: #ff0000;"&gt;${validation_message}&lt;/span&gt;&lt;br&gt;</documentation>
+        <extensionElements>
+          <activiti:formProperty id="dataSetDataUsageRequestReason" name="Purpose for Access &lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="dynamicEnum">
+            <activiti:value id="dynamicValuesExpression" name="${dynamic_list_purpose_for_access}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="business_justification" name="Business Justification&lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="textarea"></activiti:formProperty>
+          <activiti:formProperty id="tools_planning_to_use" name="Tools I am planning to use&lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="dynamicCheckbox">
+            <activiti:value id="dynamicValuesExpression" name="${dynamiclist_of_tools}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="dataSetDataUsageBusinessUnit" name="Business Unit Affiliation &lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="dynamicEnum">
+            <activiti:value id="dynamicValuesExpression" name="${dynamic_list_business_unit_affiliation}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="chk_questions" name="I have read and accept: &lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="dynamicCheckbox">
+            <activiti:value id="dynamicValuesExpression" name="${dynamic_regular_policy_map}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="dynamic_pii_column_checkbox" name="&lt;hr&gt;&lt;b&gt;Data Set ${assetApi.getAsset(dataset).getName()} contains personally Identifiable Information&lt;/b&gt;&lt;br&gt;&lt;br&gt;Access to Personally Identifiable Information requires additional justification and manual approval steps and will delay your access to this data set. You can also access this data set without PII by not selecting any column.&lt;br&gt;&lt;br&gt;" type="dynamicCheckbox">
+            <activiti:value id="dynamicValuesExpression" name="${dynamic_pii_column_map}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="bus_justification_pii" name="Business Justification for Requesting Access to PII" type="textarea"></activiti:formProperty>
+          <activiti:formProperty id="chk_pii2" name="I have read and accept:" type="dynamicCheckbox">
+            <activiti:value id="dynamicValuesExpression" name="${dynamic_pii_policy_map}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="submit" name="Submit" type="button"></activiti:formProperty>
+          <activiti:formProperty id="cancel" name="Cancel" type="button"></activiti:formProperty>
+        </extensionElements>
+      </userTask>
+      <startEvent id="startevent2" name="Start"></startEvent>
+      <scriptTask id="init_variables_loop" name="Init Variables Loop" scriptFormat="groovy" activiti:autoStoreVariables="false">
+        <script>import com.collibra.dgc.core.api.dto.instance.attribute.FindAttributesRequest
+import com.collibra.dgc.core.api.dto.instance.relation.FindRelationsRequest
+import com.collibra.dgc.core.api.dto.instance.responsibility.FindResponsibilitiesRequest
+
+loggerApi.info("&lt;&lt;Init Variables Loop: start")
+
+//Compose a name for the ticket: DatasetName_userName_date_nr
+def dataset = execution.getVariable("dataset")
+def dataset_name = assetApi.getAsset(dataset).getName()
+def user_name = userApi.getUserByUsername(requester).getFirstName() + " " + userApi.getUserByUsername(requester).getLastName()
+def dataUsageName = execution.getVariable("dataUsageName")
+def ticket_name = dataset_name + "-" + user_name + "-" + dataUsageName
+execution.setVariable("ticket_name", ticket_name)
+
+def includesPII
+def validation_message = ""
+def dynamic_regular_policy_map = [:]
+def dynamic_pii_policy_map = [:]
+def dynamic_pii_column_map = [:]
+def dataOwner = ""
+
+execution.setVariable("dynamic_policy_map", [:])
+
+execution.setVariable("validation_message", validation_message)
+
+
+/*
+Is the dataset Valid
+A valid dataset has:
+•	in status Accepted
+•   Be sure a data set has a data owner
+•   Be sure the requester is not yet data analyst of this data set
+•	Data Classification selected (not NULL)
+•	Sensitive Data Obscured flag  (not NULL)
+•	Personal Identifiable Information flag selected (not NULL)
+•	Relation secured by Security Asset filled in
+•	Relation governed by Governance Asset filled in
+*/
+def b_correct_dataset = true
+
+//Status accepted
+if (assetApi.getAsset(dataset).getStatus().getId() != string2Uuid("00000000-0000-0000-0000-000000005009")) //Accepted
+	{
+	b_correct_dataset = false
+	//loggerApi.info("--status: " + assetApi.getAsset(dataset).getStatus()).getId()
+	
+	}
+
+//data owner
+if(!responsibilityApi.findResponsibilities(FindResponsibilitiesRequest.builder()
+																.resourceIds([dataset])
+																.roleIds([string2Uuid(uuid_data_owner_responsibility)])
+																.build()
+																).getResults())
+	{
+	b_correct_dataset = false
+	loggerApi.info("--data owner missing")
+	}
+	
+
+//Be sure the requester is not yet data analyst of this data set
+if(responsibilityApi.findResponsibilities(FindResponsibilitiesRequest.builder()
+		.resourceIds([dataset])
+		.roleIds([string2Uuid(uuid_role_data_analyst)])
+		.build()
+		).getResults())
+{
+	
+	responsibilityApi.findResponsibilities(FindResponsibilitiesRequest.builder()
+		.resourceIds([dataset])
+		.roleIds([string2Uuid(uuid_role_data_analyst)])
+		.build()
+		).getResults().each{
+			
+			assignedResponsibility -&gt; loggerApi.info('existing data analysts' + userApi.getUser(assignedResponsibility.getOwner().getId()).getUserName())
+			
+			if (userApi.getUser(assignedResponsibility.getOwner().getId()).getUserName() == requester)
+			{
+				b_correct_dataset = false
+				loggerApi.info("--current user is already a data analyst")
+			}
+		}
+	
+}
+
+	
+//Data Classification
+if (attributeApi.findAttributes(FindAttributesRequest.builder()
+				.assetId(dataset)
+				.typeIds([string2Uuid("00000000-0000-0000-0001-000500000031")]) //data classification
+				.build()
+				).getResults().isEmpty())
+	{
+	b_correct_dataset = false
+	loggerApi.info("--data classification missing")
+	}
+	
+//Sensitive data obscured flag
+if (attributeApi.findAttributes(FindAttributesRequest.builder()
+				.assetId(dataset)
+				.typeIds([string2Uuid(uuid_sensitive_data_obscured)]) //Sensitive data obscured flag
+				.build()
+				).getResults().isEmpty())
+	{
+	b_correct_dataset = false
+	loggerApi.info("--sensitive data obscured flag missing")
+	}
+
+
+//Personal Identifiable Information
+if (attributeApi.findAttributes(FindAttributesRequest.builder()
+		.assetId(dataset)
+		.typeIds([string2Uuid("00000000-0000-0000-0001-000500000029")]) //Personal Identifiable information
+		.build()
+		).getResults().isEmpty())
+	{
+	b_correct_dataset = false
+	loggerApi.info("--PII flag missing")
+	}
+
+if (relationApi.findRelations(FindRelationsRequest.builder()
+	.relationTypeId(string2Uuid(uuid_applies_to_governed_by_relation))
+	.targetId(assetApi.getAsset(dataset).getId())
+	.build()
+	).getResults().isEmpty())
+	{
+	b_correct_dataset = false
+	loggerApi.info("--relation uuid_applies_to_governed_by_relation is missing")
+	}
+	
+if (relationApi.findRelations(FindRelationsRequest.builder()
+		.relationTypeId(string2Uuid(uuid_relation_security_asset))
+		.targetId(assetApi.getAsset(dataset).getId())
+		.build()
+		).getResults().isEmpty())
+	{
+	b_correct_dataset = false
+	loggerApi.info("--relation uuid_relation_security_asset is missing")
+	}
+
+
+//Does the dataset contain PII
+if(!attributeApi.findAttributes(FindAttributesRequest.builder()
+				.assetId(assetApi.getAsset(dataset).getId())
+				.typeIds([string2Uuid("00000000-0000-0000-0001-000500000029")])
+				.build()
+				).getResults().isEmpty())
+{
+	includesPII = attributeApi.findAttributes(FindAttributesRequest.builder()
+											.assetId(assetApi.getAsset(dataset).getId())
+											.typeIds([string2Uuid("00000000-0000-0000-0001-000500000029")])
+											.build()).getResults().get(0).getValue()
+	
+}
+else
+	{
+	includesPII = false
+	}
+	
+loggerApi.info("--source: " + assetApi.getAsset(dataset).getId())
+	
+		
+//Related policies: Governed by policy
+def existingPolicies = relationApi.findRelations(FindRelationsRequest.builder()
+															.relationTypeId(string2Uuid(uuid_applies_to_governed_by_relation))
+															.targetId(assetApi.getAsset(dataset).getId())
+															.build()
+															).getResults()
+															
+if (existingPolicies.size() &gt; 0)
+{
+existingPolicies.each{
+	policy -&gt; loggerApi.info("--policy: " + policy)
+
+	//Is the policy related to PII
+	if(!attributeApi.findAttributes(FindAttributesRequest.builder()
+							.assetId(policy.getSource().getId())
+							.typeIds([string2Uuid(uuid_policy_covers_pii)])
+							.build()
+							).getResults().isEmpty())
+		{
+			if (attributeApi.findAttributes(FindAttributesRequest.builder()
+													.assetId(policy.getSource().getId())
+													.typeIds([string2Uuid(uuid_policy_covers_pii)])
+													.build()).getResults().get(0).getValue() == true)
+
+				{
+				//PII Policy
+				dynamic_pii_policy_map.put(uuid2String(policy.getSource().getId()),"&lt;a href="+applicationApi.getInfo().getBaseUrl()+"asset/" + uuid2String(policy.getSource().getId()) + " target='_blank'&gt;" + policy.getSource().getName() + "&lt;/a&gt;")
+				execution.setVariable("dynamic_pii_policy_map", dynamic_pii_policy_map)
+				}
+			else
+				{
+				//regular policy
+				dynamic_regular_policy_map.put(uuid2String(policy.getSource().getId()),"&lt;a href="+ applicationApi.getInfo().getBaseUrl() + "asset/" + uuid2String(policy.getSource().getId()) + " target='_blank'&gt;" + policy.getSource().getName() + "&lt;/a&gt;")
+				execution.setVariable("dynamic_regular_policy_map", dynamic_regular_policy_map)
+				}
+		}
+		else
+			{
+			//regular policy
+			dynamic_regular_policy_map.put(uuid2String(policy.getSource().getId()),"&lt;a href="+ applicationApi.getInfo().getBaseUrl() +"asset/" + uuid2String(policy.getSource().getId()) + " target='_blank'&gt;" + policy.getSource().getName() + "&lt;/a&gt;")
+			execution.setVariable("dynamic_regular_policy_map", dynamic_regular_policy_map)
+			}
+	}
+}
+
+//Get the dataowner of the dataset
+if (responsibilityApi.findResponsibilities(FindResponsibilitiesRequest.builder()
+										.resourceIds([assetApi.getAsset(dataset).getId()])
+										.roleIds([string2Uuid(uuid_data_owner_responsibility)]) //data owner
+										.build()
+										).getResults().size() &gt; 0 )
+{
+def assignedResponsibilities = responsibilityApi.findResponsibilities(FindResponsibilitiesRequest.builder()
+										.resourceIds([assetApi.getAsset(dataset).getId()])
+										.roleIds([string2Uuid(uuid_data_owner_responsibility)]) //data owner
+										.build()
+										).getResults().get(0)
+assignedResponsibilities.each
+	{
+	assignedResponsibility -&gt; dataOwner = userApi.getUser(assignedResponsibility.getOwner().getId()).getUserName()
+	}
+}
+
+//get the list of related columns to the dataset
+def existingDataElements = relationApi.findRelations(FindRelationsRequest.builder()
+															.relationTypeId(string2Uuid("00000000-0000-0000-0000-000000007062"))
+															.sourceId(dataset)
+															.build()
+															).getResults()
+															
+existingDataElements.each
+ {
+	data_element -&gt; loggerApi.info("--data element: " + data_element.getTarget().getName())
+	 
+	//Is the data element related to PII
+	if(!attributeApi.findAttributes(FindAttributesRequest.builder()
+							.assetId(data_element.getTarget().getId())
+							.typeIds([string2Uuid("00000000-0000-0000-0001-000500000029")])//Personal Identifiable information
+							.build()
+							).getResults().isEmpty())
+		{
+			if (attributeApi.findAttributes(FindAttributesRequest.builder()
+													.assetId(data_element.getTarget().getId())
+													.typeIds([string2Uuid("00000000-0000-0000-0001-000500000029")])
+													.build()).getResults().get(0).getValue() == true)
+
+				{
+				//fill dynamic PII column map
+				dynamic_pii_column_map.put(uuid2String(data_element.getTarget().getId()),"&lt;a href="+applicationApi.getInfo().getBaseUrl()+"asset/" + uuid2String(data_element.getTarget().getId()) + " target='_blank'&gt;" + assetApi.getAsset(data_element.getTarget().getId()).getDisplayName() + "&lt;/a&gt;")
+				execution.setVariable("dynamic_pii_column_map", dynamic_pii_column_map)
+				}
+		}
+	}
+	
+//Get the list of tools
+def dynamiclist_of_tools = [:]
+attributeTypeApi.getAttributeType(string2Uuid(uuid_used_tools)).getAllowedValues().each{
+	tool -&gt; dynamiclist_of_tools.put(tool,tool)
+}
+
+//Get the list of purpose for access
+def dynamic_list_purpose_for_access = [:]
+attributeTypeApi.getAttributeType(string2Uuid(purpose_for_access)).getAllowedValues().each{
+	purpose -&gt; dynamic_list_purpose_for_access.put(purpose,purpose)
+}
+
+//Get the list of business unit affiliation
+def dynamic_list_business_unit_affiliation = [:]
+attributeTypeApi.getAttributeType(string2Uuid(businessUnitAffiliationAttributeTypeUuid)).getAllowedValues().each{
+	business_unit_affiliation -&gt; dynamic_list_business_unit_affiliation.put(business_unit_affiliation,business_unit_affiliation)
+}
+
+execution.setVariable("dynamic_list_purpose_for_access",dynamic_list_purpose_for_access)
+execution.setVariable("dynamic_list_business_unit_affiliation",dynamic_list_business_unit_affiliation)
+execution.setVariable("dynamiclist_of_tools",dynamiclist_of_tools)
+execution.setVariable("dynamic_pii_column_map",dynamic_pii_column_map)
+execution.setVariable("dataOwner", dataOwner)
+execution.setVariable("includesPII", includesPII)
+loggerApi.info("--Does the dataset contain PII: " + includesPII)
+
+execution.setVariable("b_correct_dataset", b_correct_dataset)
+	
+loggerApi.info("&lt;&lt;Init Variables Loop: end")</script>
+      </scriptTask>
+      <sequenceFlow id="flow83" sourceRef="startevent2" targetRef="init_variables_loop"></sequenceFlow>
+      <scriptTask id="refresh_variables" name="refresh variables" scriptFormat="groovy" activiti:autoStoreVariables="false">
+        <script>loggerApi.info("&lt;&lt;Refresh Variables: start")
+
+execution.setVariable("dataSetDataUsageRequestReason", "")
+execution.setVariable("business_justification", "")
+execution.setVariable("tools_planning_to_use", "")
+execution.setVariable("dataSetDataUsageBusinessUnit", "")
+execution.setVariable("chk_questions", "")
+execution.setVariable("chk_pii","")
+execution.setVariable("bus_justification_pii", "")
+
+if (binding.hasVariable('chk_pii2'))
+{
+	execution.setVariable("chk_pii2", "")
+}
+
+loggerApi.info("&lt;&lt;Refresh Variables: end")</script>
+      </scriptTask>
+      <endEvent id="endevent3" name="End"></endEvent>
+      <exclusiveGateway id="exclusivegateway4" name="Exclusive Gateway"></exclusiveGateway>
+      <scriptTask id="addAttributes" name="Add Attributes" scriptFormat="groovy" activiti:autoStoreVariables="false">
+        <script>import com.collibra.dgc.core.api.model.instance.Asset
+import com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest
+import com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest
+
+loggerApi.info("&lt;&lt;add attributes: start")
+
+purpose_type = string2Uuid(purpose_for_access)
+business_unit_affiliation_type = string2Uuid(businessUnitAffiliationAttributeTypeUuid)
+business_justification_type = string2Uuid(uuid_business_justification)
+business_justification_pii_type = string2Uuid(uuid_business_justification_pii)
+used_tools_type = string2Uuid(uuid_used_tools)
+
+
+
+role_type = string2Uuid(roleAttributeTypeUuid)
+status_approval_pending = string2Uuid(approvalPendingStatusTypeUuid)
+
+
+
+def dataSetDataUsage = execution.getVariable("dataSetDataUsage")
+def dataRequestTicket = execution.getVariable("newIssueUuid")
+def chk_pii = false
+
+//Asset usage = assetApi.getAsset(dataSetDataUsage)
+Asset ticket = assetApi.getAsset(dataRequestTicket)
+
+
+//Add attributes
+//Request Reason
+setTextAttribute(ticket,purpose_type,execution.getVariable("dataSetDataUsageRequestReason").toString())
+loggerApi.info("--------purpose: " + execution.getVariable("dataSetDataUsageRequestReason").toString())
+
+
+//BusinessUnitAffiliation
+setTextAttribute(ticket,business_unit_affiliation_type,execution.getVariable("dataSetDataUsageBusinessUnit").toString())
+
+//BusinessJustification
+setTextAttribute(ticket,business_justification_type,execution.getVariable("business_justification").toString())
+
+//BusinessJustificationPII
+if (execution.getVariable("bus_justification_pii"))
+{
+	setTextAttribute(ticket,business_justification_pii_type,execution.getVariable("bus_justification_pii").toString())
+}
+//Tools
+execution.getVariable("tools_planning_to_use").toString().split(",").each
+{
+	tool -&gt; setTextAttribute(ticket,used_tools_type,tool)
+}
+
+//Requires PII
+if (binding.hasVariable('dynamic_pii_column_checkbox'))
+	{
+	if (dynamic_pii_column_checkbox.size()&gt;0)
+			{
+			
+			dynamic_pii_column_checkbox.split(",").each
+			{
+				column -&gt;
+								
+				//We need to add a relations between the ticket and the selected columns
+				relationApi.addRelation(AddRelationRequest.builder()
+					.sourceId(ticket.getId())
+					.targetId(string2Uuid(column))
+					.typeId(string2Uuid(uuid_relation_ticket_pii_column))
+					.build())
+				
+				
+				
+				}
+							
+			loggerApi.info("--Selected PII")
+			chk_pii = true
+			setTextAttribute(ticket,string2Uuid(uuid_access_with_pii),true)
+			}
+	}
+//setRole(usage, execution)
+execution.setVariable("chk_pii", chk_pii)
+
+
+//status
+//assetApi.changeAsset(ChangeAssetRequest.builder().statusId(status_approval_pending).id(dataSetDataUsage).build())
+
+def setDateAttribute(Asset asset,attribute_uuid,value)
+	{
+		def currentDate = value
+		attributeApi.addAttribute(AddAttributeRequest.builder().assetId(asset.getId()).typeId(attribute_uuid).value(currentDate.getTime() as String).build())
+	}
+
+def setTextAttribute(Asset asset,attribute_uuid,value)
+	{
+		def currentText = value
+		attributeApi.addAttribute(AddAttributeRequest.builder().assetId(asset.getId()).typeId(attribute_uuid).value(currentText).build())
+	}
+
+
+def setRole(Asset asset, execution) {
+  String requesterRole = execution.getVariable("dataSetDataUsageRole").toString()
+  attributeApi.addAttribute(AddAttributeRequest.builder().assetId(asset.getId()).typeId(role_type).value(requesterRole).build())
+}
+
+message = 'Your access requests have been logged as tickets. You can check the progress of your tickets &lt;a href="' + applicationApi.getInfo().getBaseUrl() + 'data-helpdesk?view=' + uuid_data_helpdesk_view + '" target="_blank"&gt;here&lt;/a&gt;...'
+execution.setVariable("message", message)
+loggerApi.info("--message:" + message )
+
+//Add relation between the dataset and the ticket
+relationApi.addRelation(AddRelationRequest.builder()
+		.sourceId(dataset)
+		.targetId(dataRequestTicket)
+		.typeId(string2Uuid("00000000-0000-0000-0000-000000007015"))
+		.build())
+
+
+
+loggerApi.info("&lt;&lt;add attributes: end")
+</script>
+      </scriptTask>
+      <userTask id="dataSetAccessRequest" name="Data Set Request form: ${assetApi.getAsset(dataset).getName()}" activiti:candidateUsers="user(${requester})">
+        <documentation>&lt;span style="color: #ff0000;"&gt;${validation_message}&lt;/span&gt;&lt;br&gt;</documentation>
+        <extensionElements>
+          <activiti:formProperty id="dataSetDataUsageRequestReason" name="Purpose for Access &lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="dynamicEnum">
+            <activiti:value id="dynamicValuesExpression" name="${dynamic_list_purpose_for_access}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="business_justification" name="Business Justification&lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="textarea"></activiti:formProperty>
+          <activiti:formProperty id="tools_planning_to_use" name="Tools I am planning to use&lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="dynamicCheckbox">
+            <activiti:value id="dynamicValuesExpression" name="${dynamiclist_of_tools}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="dataSetDataUsageBusinessUnit" name="Business Unit Affiliation &lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="dynamicEnum">
+            <activiti:value id="dynamicValuesExpression" name="${dynamic_list_business_unit_affiliation}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="chk_questions" name="I have read and accept: &lt;font color=&quot;red&quot;&gt; * &lt;/font&gt;" type="dynamicCheckbox">
+            <activiti:value id="dynamicValuesExpression" name="${dynamic_regular_policy_map}"></activiti:value>
+          </activiti:formProperty>
+          <activiti:formProperty id="submit" name="Submit" type="button"></activiti:formProperty>
+          <activiti:formProperty id="cancel" name="Cancel" type="button"></activiti:formProperty>
+        </extensionElements>
+      </userTask>
+      <sequenceFlow id="flow89" sourceRef="exclusivegateway4" targetRef="dataSetAccessRequestPII">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${dynamic_pii_column_map.size()>0 && b_correct_dataset}]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow90" sourceRef="exclusivegateway4" targetRef="dataSetAccessRequest">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${dynamic_pii_column_map.size()==0 && b_correct_dataset}]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow91" sourceRef="init_variables_loop" targetRef="exclusivegateway4"></sequenceFlow>
+      <scriptTask id="create_data_reqquest_ticket" name="Create Data Request Ticket" scriptFormat="groovy" activiti:autoStoreVariables="false">
+        <script>import com.collibra.dgc.core.api.dto.instance.issue.AddIssueRequest;
+import com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest
+import com.collibra.dgc.core.api.model.ResourceType
+
+loggerApi.info("&lt;&lt;Create data request Ticket: start")
+
+def newIssueUuid = issueApi.addIssue(AddIssueRequest.builder()
+	.name(ticket_name)
+	.description(ticket_name)
+	.typeId(string2Uuid(uuid_data_request_ticket))
+	.build()
+	).getId()
+
+execution.setVariable("newIssueUuid", newIssueUuid)
+
+responsibilityApi.addResponsibility(AddResponsibilityRequest.builder()
+									.ownerId(userApi.getUserByUsername(requester).getId())
+									.resourceId(newIssueUuid)
+									.roleId(string2Uuid("00000000-0000-0000-0000-000000005033")) //Requester
+									.resourceType(ResourceType.valueOf("Asset"))
+									.build())
+
+loggerApi.info("&lt;&lt;Create data request Ticket: end")
+</script>
+      </scriptTask>
+      <sequenceFlow id="flow78" sourceRef="create_data_reqquest_ticket" targetRef="addAttributes"></sequenceFlow>
+      <scriptTask id="validate_without_pii" name="validate without pii" scriptFormat="groovy" activiti:autoStoreVariables="false">
+        <script>loggerApi.info("&lt;&lt;validate without PII : start")
+
+def validation_message = ""
+execution.setVariable("validation_message","")
+
+//Purpose for Access
+if (dataSetDataUsageRequestReason =="")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Purpose for Access&lt;/u&gt; is a mandatory field, please fill in a value.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+
+//Business Justification
+if (business_justification.toString() =="")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Business Justification&lt;/u&gt; is a mandatory field, please fill in a value.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+
+//Tools I am planning to use
+if (tools_planning_to_use =="")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Tools I am planning to use&lt;/u&gt; is a mandatory field, please select at least 1 tool.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+
+//Business Unit Affiliation
+if (dataSetDataUsageBusinessUnit =="")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Business Unit Affiliation&lt;/u&gt; is a mandatory field, please fill in a value.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+
+
+loggerApi.info("dynamic_regular_policy_map: " + dynamic_regular_policy_map)
+loggerApi.info("chk_questions: " + chk_questions)
+	
+//policies
+if (dynamic_regular_policy_map.size() &gt; chk_questions.split(",").size() || chk_questions == "")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Policies&lt;/u&gt; should all be accepted; Please accept them before you continue.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+
+//pii
+execution.setVariable("chk_pii",false)
+loggerApi.info("&lt;&lt;validate without PII: end")</script>
+      </scriptTask>
+      <sequenceFlow id="flow93" sourceRef="dataSetAccessRequest" targetRef="validate_without_pii"></sequenceFlow>
+      <scriptTask id="validate_with_pii" name="validate with pii" scriptFormat="groovy" activiti:autoStoreVariables="false">
+        <script>loggerApi.info("&lt;&lt;validate with PII : start")
+
+def validation_message = ""
+execution.setVariable("validation_message","")
+
+//Purpose for Access
+if (dataSetDataUsageRequestReason =="")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Purpose for Access&lt;/u&gt; is a mandatory field, please fill in a value.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+
+//Business Justification
+if (business_justification.toString() =="")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Business Justification&lt;/u&gt; is a mandatory field, please fill in a value.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+
+//Tools I am planning to use
+if (tools_planning_to_use =="")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Tools I am planning to use&lt;/u&gt; is a mandatory field, please select at least 1 tool.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+
+//Business Unit Affiliation
+if (dataSetDataUsageBusinessUnit =="")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Business Unit Affiliation&lt;/u&gt; is a mandatory field, please fill in a value.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+
+
+//Business Justification for Requesting Access to PII
+if (dynamic_pii_column_checkbox.size() &gt; 0 &amp;&amp; bus_justification_pii.toString() =="")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Business Justification for Requesting Access to PII&lt;/u&gt; is a mandatory field (if you want to access PII), please fill in a value.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+	
+
+
+//policies
+loggerApi.info("dynamic_regular_policy_map:" + dynamic_regular_policy_map.size())
+loggerApi.info("chk_questions:" + chk_questions.split(",").size())
+
+	
+if (dynamic_regular_policy_map.size() &gt; chk_questions.split(",").size() || chk_questions == "")
+	{
+		validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Policies&lt;/u&gt; should all be accepted; Please accept them before you continue.&lt;br&gt;'
+		execution.setVariable("validation_message",validation_message)
+	}
+	
+//pii policy
+if (dynamic_pii_policy_map.size() &gt; chk_pii2.split(",").size() &amp;&amp; chk_pii2 !=""  )
+		{
+			validation_message = '&lt;b&gt;Note: &lt;br&gt;&lt;/b&gt;&lt;u&gt;Privacy Policies&lt;/u&gt; should be accepted (if you want to access PII), Please accept them before you continue.&lt;br&gt;'
+			execution.setVariable("validation_message",validation_message)
+		}
+	
+loggerApi.info("&lt;&lt;validate with PII: end")</script>
+      </scriptTask>
+      <sequenceFlow id="flow94" sourceRef="dataSetAccessRequestPII" targetRef="validate_with_pii"></sequenceFlow>
+      <exclusiveGateway id="exclusivegateway5" name="Exclusive Gateway"></exclusiveGateway>
+      <sequenceFlow id="flow95" sourceRef="validate_with_pii" targetRef="exclusivegateway5"></sequenceFlow>
+      <exclusiveGateway id="exclusivegateway6" name="Exclusive Gateway"></exclusiveGateway>
+      <sequenceFlow id="flow96" sourceRef="validate_without_pii" targetRef="exclusivegateway6"></sequenceFlow>
+      <sequenceFlow id="flow97" sourceRef="exclusivegateway5" targetRef="dataSetAccessRequestPII">
+        <documentation>${validation_message != "" &amp;&amp; next}</documentation>
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${validation_message != "" && submit}]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow98" sourceRef="exclusivegateway6" targetRef="dataSetAccessRequest">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${validation_message != "" && submit}]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow99" sourceRef="exclusivegateway5" targetRef="create_data_reqquest_ticket">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${validation_message == "" && submit}]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow100" sourceRef="exclusivegateway6" targetRef="create_data_reqquest_ticket">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${validation_message == "" && submit}]]></conditionExpression>
+      </sequenceFlow>
+      <endEvent id="endevent4" name="End"></endEvent>
+      <sequenceFlow id="flow101" sourceRef="exclusivegateway5" targetRef="endevent4">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${cancel}]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow102" sourceRef="exclusivegateway6" targetRef="endevent4">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${cancel}]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow105" sourceRef="refresh_variables" targetRef="endevent3"></sequenceFlow>
+      <scriptTask id="approval_process" name="Approval Process" scriptFormat="groovy" activiti:autoStoreVariables="false">
+        <script>import com.collibra.dgc.core.api.model.workflow.WorkflowBusinessItemType
+
+loggerApi.info("&lt;&lt;Approval Process: Start")
+
+
+def add_access = "add"
+
+
+if (binding.hasVariable("dynamic_pii_column_checkbox"))
+	if (dynamic_pii_column_checkbox)
+	{
+		workflowInstanceApi.startWorkflowInstances(builders.get("StartWorkflowInstancesRequest")
+			.businessItemIds([newIssueUuid])
+			.businessItemType(WorkflowBusinessItemType.valueOf("ASSET"))
+			.workflowDefinitionId(workflowDefinitionApi.getWorkflowDefinitionByProcessId("data_request_ticket_approval").getId())
+			.formProperties([requester: requester, dataset: dataset, add_access: add_access,  newIssueUuid: newIssueUuid, dataOwner: dataOwner, chk_pii: true])
+			.build())
+		
+		loggerApi.info("-----PII!: " + dataset)
+	}
+	else
+	{
+		workflowInstanceApi.startWorkflowInstances(builders.get("StartWorkflowInstancesRequest")
+			.businessItemIds([newIssueUuid])
+			.businessItemType(WorkflowBusinessItemType.valueOf("ASSET"))
+			.workflowDefinitionId(workflowDefinitionApi.getWorkflowDefinitionByProcessId("data_request_ticket_approval").getId())
+			.formProperties([requester: requester, dataset: dataset, add_access: add_access,  newIssueUuid: newIssueUuid, dataOwner: dataOwner, chk_pii: false])
+			.build())
+		
+		loggerApi.info("-----NO PII!: " + dataset)
+	}
+else
+{
+	workflowInstanceApi.startWorkflowInstances(builders.get("StartWorkflowInstancesRequest")
+		.businessItemIds([newIssueUuid])
+		.businessItemType(WorkflowBusinessItemType.valueOf("ASSET"))
+		.workflowDefinitionId(workflowDefinitionApi.getWorkflowDefinitionByProcessId("data_request_ticket_approval").getId())
+		.formProperties([requester: requester, dataset: dataset, add_access: add_access,  newIssueUuid: newIssueUuid, dataOwner: dataOwner, chk_pii: false])
+		.build())
+	
+	loggerApi.info("-----NO PII!: " + dataset)
+	
+}
+
+
+
+//Since this parameter is important to see if an apprval is needed, to be sure we clean it up after every loop
+execution.setVariable("dynamic_pii_column_checkbox", "")
+
+
+loggerApi.info("&lt;&lt;Approval Process: End")
+</script>
+      </scriptTask>
+      <sequenceFlow id="flow115" sourceRef="addAttributes" targetRef="approval_process"></sequenceFlow>
+      <sequenceFlow id="flow116" sourceRef="approval_process" targetRef="refresh_variables"></sequenceFlow>
+      <userTask id="invalid_dataset" name="Invalid Data Set" activiti:candidateUsers="user(${requester})">
+        <documentation>Dear user,
+&lt;br&gt;
+&lt;b&gt;Please note that the dataset &lt;u&gt;${assetApi.getAsset(dataset).getName()}&lt;/u&gt; is invalid and for that reason no access can be requested.&lt;b&gt;
+&lt;br&gt;&lt;br&gt;
+A valid dataset has:
+&lt;br&gt; - a status Accepted
+&lt;br&gt; - a valid Security Classification selected
+&lt;br&gt; - a valid Data Obscured flag selected
+&lt;br&gt; - a valid PII flag selected
+&lt;br&gt; - a relation secured by Security Asset filled in
+&lt;br&gt; - a Relation governed by Governance Asset filled in
+&lt;br&gt; - 1 or more data owner(s)
+&lt;br&gt; - The current user is already a data analyst of the data set</documentation>
+        <extensionElements>
+          <activiti:formProperty id="incorrect_dataset" type="checkbox"></activiti:formProperty>
+          <activiti:formProperty id="ok" name="ok" type="button"></activiti:formProperty>
+        </extensionElements>
+      </userTask>
+      <sequenceFlow id="flow127" sourceRef="exclusivegateway4" targetRef="invalid_dataset">
+        <conditionExpression xsi:type="tFormalExpression"><![CDATA[${!b_correct_dataset}]]></conditionExpression>
+      </sequenceFlow>
+      <sequenceFlow id="flow128" sourceRef="invalid_dataset" targetRef="endevent3"></sequenceFlow>
+    </subProcess>
+    <sequenceFlow id="flow81" sourceRef="assignRequesterRoleToDataUsage" targetRef="subprocess1"></sequenceFlow>
+    <userTask id="data_access_ticket" name="Data Access Ticket" activiti:candidateUsers="user(${requester})">
+      <documentation>${message}</documentation>
+      <extensionElements>
+        <activiti:formProperty id="close" name="Close" type="button"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <endEvent id="endevent5" name="End"></endEvent>
+    <sequenceFlow id="flow117" sourceRef="data_access_ticket" targetRef="endevent5"></sequenceFlow>
+    <boundaryEvent id="boundarytimer1" name="Timer" attachedToRef="data_access_ticket" cancelActivity="true">
+      <timerEventDefinition>
+        <timeDuration>PT300S</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="flow119" sourceRef="boundarytimer1" targetRef="endevent5"></sequenceFlow>
+    <exclusiveGateway id="exclusivegateway7" name="Exclusive Gateway"></exclusiveGateway>
+    <sequenceFlow id="flow121" sourceRef="exclusivegateway7" targetRef="data_access_ticket">
+      <documentation>${message}</documentation>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${message != ""}]]></conditionExpression>
+    </sequenceFlow>
+    <endEvent id="endevent6" name="End"></endEvent>
+    <userTask id="no_datasets" name="No datasets" activiti:candidateUsers="user(${requester})">
+      <documentation>Dear user, &lt;br&gt;&lt;br&gt; You didn't check out any dataset, so no data request ticket was created. The workflow can be closed.</documentation>
+      <extensionElements>
+        <activiti:formProperty id="close" name="Close" type="button" required="true"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <sequenceFlow id="flow122" sourceRef="exclusivegateway7" targetRef="no_datasets">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${message == ""}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow123" sourceRef="no_datasets" targetRef="endevent6"></sequenceFlow>
+    <scriptTask id="define_message" name="Define Message" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>loggerApi.info("&lt;&lt;Define Message: start")
+
+if (!binding.hasVariable('message')) 
+{
+	def message = ""
+	execution.setVariable("message", "")
+}
+
+loggerApi.info("&lt;&lt;Define Message: end")</script>
+    </scriptTask>
+    <sequenceFlow id="flow124" sourceRef="subprocess1" targetRef="define_message"></sequenceFlow>
+    <sequenceFlow id="flow125" sourceRef="define_message" targetRef="exclusivegateway7"></sequenceFlow>
+    <sequenceFlow id="flow126" sourceRef="startevent1" targetRef="generateDataUsageName"></sequenceFlow>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Collaboration">
+    <bpmndi:BPMNPlane bpmnElement="Collaboration" id="BPMNPlane_Collaboration">
+      <bpmndi:BPMNShape bpmnElement="pool1" id="BPMNShape_pool1">
+        <omgdc:Bounds height="381.0" width="2311.0" x="0.0" y="0.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="lane1" id="BPMNShape_lane1">
+        <omgdc:Bounds height="381.0" width="2291.0" x="20.0" y="0.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent1" id="BPMNShape_startevent1">
+        <omgdc:Bounds height="35.0" width="35.0" x="30.0" y="34.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="initDataUsageRequest" id="BPMNShape_initDataUsageRequest">
+        <omgdc:Bounds height="60.0" width="105.0" x="100.0" y="250.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="generateDataUsageName" id="BPMNShape_generateDataUsageName">
+        <omgdc:Bounds height="60.0" width="105.0" x="100.0" y="152.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="assignRequesterRoleToDataUsage" id="BPMNShape_assignRequesterRoleToDataUsage">
+        <omgdc:Bounds height="81.0" width="105.0" x="250.0" y="141.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="identifyReportsAndDataSets" id="BPMNShape_identifyReportsAndDataSets">
+        <omgdc:Bounds height="60.0" width="105.0" x="250.0" y="250.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="subprocess1" id="BPMNShape_subprocess1">
+        <omgdc:Bounds height="341.0" width="1431.0" x="420.0" y="20.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="dataSetAccessRequestPII" id="BPMNShape_dataSetAccessRequestPII">
+        <omgdc:Bounds height="70.0" width="105.0" x="756.0" y="41.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent2" id="BPMNShape_startevent2">
+        <omgdc:Bounds height="35.0" width="35.0" x="551.0" y="30.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="init_variables_loop" id="BPMNShape_init_variables_loop">
+        <omgdc:Bounds height="70.0" width="105.0" x="516.0" y="103.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="refresh_variables" id="BPMNShape_refresh_variables">
+        <omgdc:Bounds height="55.0" width="105.0" x="1670.0" y="110.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent3" id="BPMNShape_endevent3">
+        <omgdc:Bounds height="35.0" width="35.0" x="1810.0" y="120.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway4" id="BPMNShape_exclusivegateway4">
+        <omgdc:Bounds height="40.0" width="40.0" x="686.0" y="117.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="addAttributes" id="BPMNShape_addAttributes">
+        <omgdc:Bounds height="60.0" width="105.0" x="1386.0" y="108.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="dataSetAccessRequest" id="BPMNShape_dataSetAccessRequest">
+        <omgdc:Bounds height="70.0" width="105.0" x="756.0" y="170.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="create_data_reqquest_ticket" id="BPMNShape_create_data_reqquest_ticket">
+        <omgdc:Bounds height="70.0" width="105.0" x="1236.0" y="103.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="validate_without_pii" id="BPMNShape_validate_without_pii">
+        <omgdc:Bounds height="70.0" width="105.0" x="926.0" y="170.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="validate_with_pii" id="BPMNShape_validate_with_pii">
+        <omgdc:Bounds height="55.0" width="105.0" x="926.0" y="48.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway5" id="BPMNShape_exclusivegateway5">
+        <omgdc:Bounds height="40.0" width="40.0" x="1076.0" y="56.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway6" id="BPMNShape_exclusivegateway6">
+        <omgdc:Bounds height="40.0" width="40.0" x="1076.0" y="186.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent4" id="BPMNShape_endevent4">
+        <omgdc:Bounds height="35.0" width="35.0" x="1136.0" y="120.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="approval_process" id="BPMNShape_approval_process">
+        <omgdc:Bounds height="71.0" width="105.0" x="1540.0" y="102.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="invalid_dataset" id="BPMNShape_invalid_dataset">
+        <omgdc:Bounds height="55.0" width="105.0" x="516.0" y="270.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="data_access_ticket" id="BPMNShape_data_access_ticket">
+        <omgdc:Bounds height="60.0" width="105.0" x="2102.0" y="161.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="boundarytimer1" id="BPMNShape_boundarytimer1">
+        <omgdc:Bounds height="30.0" width="30.0" x="2182.0" y="199.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent5" id="BPMNShape_endevent5">
+        <omgdc:Bounds height="35.0" width="35.0" x="2260.0" y="173.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway7" id="BPMNShape_exclusivegateway7">
+        <omgdc:Bounds height="40.0" width="40.0" x="2030.0" y="170.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent6" id="BPMNShape_endevent6">
+        <omgdc:Bounds height="35.0" width="35.0" x="2033.0" y="330.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="no_datasets" id="BPMNShape_no_datasets">
+        <omgdc:Bounds height="55.0" width="105.0" x="1998.0" y="252.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="define_message" id="BPMNShape_define_message">
+        <omgdc:Bounds height="55.0" width="105.0" x="1894.0" y="163.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="flow23" id="BPMNEdge_flow23">
+        <omgdi:waypoint x="152.0" y="212.0"></omgdi:waypoint>
+        <omgdi:waypoint x="152.0" y="250.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow45" id="BPMNEdge_flow45">
+        <omgdi:waypoint x="302.0" y="250.0"></omgdi:waypoint>
+        <omgdi:waypoint x="302.0" y="222.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow73" id="BPMNEdge_flow73">
+        <omgdi:waypoint x="205.0" y="280.0"></omgdi:waypoint>
+        <omgdi:waypoint x="250.0" y="280.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow83" id="BPMNEdge_flow83">
+        <omgdi:waypoint x="568.0" y="65.0"></omgdi:waypoint>
+        <omgdi:waypoint x="568.0" y="103.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow89" id="BPMNEdge_flow89">
+        <omgdi:waypoint x="706.0" y="117.0"></omgdi:waypoint>
+        <omgdi:waypoint x="706.0" y="75.0"></omgdi:waypoint>
+        <omgdi:waypoint x="756.0" y="76.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow90" id="BPMNEdge_flow90">
+        <omgdi:waypoint x="706.0" y="157.0"></omgdi:waypoint>
+        <omgdi:waypoint x="705.0" y="204.0"></omgdi:waypoint>
+        <omgdi:waypoint x="756.0" y="205.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow91" id="BPMNEdge_flow91">
+        <omgdi:waypoint x="621.0" y="138.0"></omgdi:waypoint>
+        <omgdi:waypoint x="686.0" y="137.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow78" id="BPMNEdge_flow78">
+        <omgdi:waypoint x="1341.0" y="138.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1386.0" y="138.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow93" id="BPMNEdge_flow93">
+        <omgdi:waypoint x="861.0" y="205.0"></omgdi:waypoint>
+        <omgdi:waypoint x="926.0" y="205.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow94" id="BPMNEdge_flow94">
+        <omgdi:waypoint x="861.0" y="76.0"></omgdi:waypoint>
+        <omgdi:waypoint x="926.0" y="75.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow95" id="BPMNEdge_flow95">
+        <omgdi:waypoint x="1031.0" y="75.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1076.0" y="76.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow96" id="BPMNEdge_flow96">
+        <omgdi:waypoint x="1031.0" y="205.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1076.0" y="206.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow97" id="BPMNEdge_flow97">
+        <omgdi:waypoint x="1096.0" y="96.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1096.0" y="127.0"></omgdi:waypoint>
+        <omgdi:waypoint x="809.0" y="127.0"></omgdi:waypoint>
+        <omgdi:waypoint x="808.0" y="111.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow98" id="BPMNEdge_flow98">
+        <omgdi:waypoint x="1096.0" y="186.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1095.0" y="156.0"></omgdi:waypoint>
+        <omgdi:waypoint x="813.0" y="156.0"></omgdi:waypoint>
+        <omgdi:waypoint x="808.0" y="170.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow99" id="BPMNEdge_flow99">
+        <omgdi:waypoint x="1116.0" y="76.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1286.0" y="76.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1288.0" y="103.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow100" id="BPMNEdge_flow100">
+        <omgdi:waypoint x="1116.0" y="206.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1289.0" y="206.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1288.0" y="173.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow101" id="BPMNEdge_flow101">
+        <omgdi:waypoint x="1096.0" y="96.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1153.0" y="120.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow102" id="BPMNEdge_flow102">
+        <omgdi:waypoint x="1096.0" y="186.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1153.0" y="155.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow105" id="BPMNEdge_flow105">
+        <omgdi:waypoint x="1775.0" y="137.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1810.0" y="137.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow115" id="BPMNEdge_flow115">
+        <omgdi:waypoint x="1491.0" y="138.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1540.0" y="137.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow116" id="BPMNEdge_flow116">
+        <omgdi:waypoint x="1645.0" y="137.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1670.0" y="137.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow127" id="BPMNEdge_flow127">
+        <omgdi:waypoint x="706.0" y="157.0"></omgdi:waypoint>
+        <omgdi:waypoint x="568.0" y="270.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow128" id="BPMNEdge_flow128">
+        <omgdi:waypoint x="621.0" y="297.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1827.0" y="297.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1827.0" y="155.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow81" id="BPMNEdge_flow81">
+        <omgdi:waypoint x="355.0" y="181.0"></omgdi:waypoint>
+        <omgdi:waypoint x="420.0" y="190.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow117" id="BPMNEdge_flow117">
+        <omgdi:waypoint x="2207.0" y="191.0"></omgdi:waypoint>
+        <omgdi:waypoint x="2260.0" y="190.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow119" id="BPMNEdge_flow119">
+        <omgdi:waypoint x="2212.0" y="214.0"></omgdi:waypoint>
+        <omgdi:waypoint x="2260.0" y="190.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow121" id="BPMNEdge_flow121">
+        <omgdi:waypoint x="2070.0" y="190.0"></omgdi:waypoint>
+        <omgdi:waypoint x="2102.0" y="191.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow122" id="BPMNEdge_flow122">
+        <omgdi:waypoint x="2050.0" y="210.0"></omgdi:waypoint>
+        <omgdi:waypoint x="2050.0" y="252.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow123" id="BPMNEdge_flow123">
+        <omgdi:waypoint x="2050.0" y="307.0"></omgdi:waypoint>
+        <omgdi:waypoint x="2050.0" y="330.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow124" id="BPMNEdge_flow124">
+        <omgdi:waypoint x="1851.0" y="190.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1894.0" y="190.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow125" id="BPMNEdge_flow125">
+        <omgdi:waypoint x="1999.0" y="190.0"></omgdi:waypoint>
+        <omgdi:waypoint x="2030.0" y="190.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow126" id="BPMNEdge_flow126">
+        <omgdi:waypoint x="65.0" y="51.0"></omgdi:waypoint>
+        <omgdi:waypoint x="152.0" y="51.0"></omgdi:waypoint>
+        <omgdi:waypoint x="152.0" y="152.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
