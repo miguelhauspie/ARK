@@ -1,0 +1,757 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:activiti="http://activiti.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" typeLanguage="http://www.w3.org/2001/XMLSchema" expressionLanguage="http://www.w3.org/1999/XPath" targetNamespace="http://www.collibra.com/apiv2">
+  <collaboration id="Collaboration">
+    <participant id="pool1" name="Request Access Gateway" processRef="RequestAccessGatewayElsevier"></participant>
+  </collaboration>
+  <message id="gatewayMessageId" name="connectEvent"></message>
+  <process id="RequestAccessGatewayElsevier" name="Request Access Gateway" isExecutable="true">
+    <documentation>[Elsevier] Use this flow to create a user task for an access request, which can be picked up and processed by an external system.</documentation>
+    <laneSet id="laneSet_RequestAccessGatewayElsevier">
+      <lane id="lane1" name="Requester">
+        <flowNodeRef>startevent1</flowNodeRef>
+        <flowNodeRef>usertaskPolling</flowNodeRef>
+        <flowNodeRef>messageintermediatecatchevent1</flowNodeRef>
+        <flowNodeRef>processMessageResponse</flowNodeRef>
+        <flowNodeRef>exclusivegateway1</flowNodeRef>
+        <flowNodeRef>markAsAccessGranted</flowNodeRef>
+        <flowNodeRef>markAsRejected</flowNodeRef>
+        <flowNodeRef>init_variables</flowNodeRef>
+        <flowNodeRef>access_granted</flowNodeRef>
+        <flowNodeRef>endevent2</flowNodeRef>
+        <flowNodeRef>endevent3</flowNodeRef>
+        <flowNodeRef>access_rejected</flowNodeRef>
+        <flowNodeRef>access_revoked</flowNodeRef>
+        <flowNodeRef>endevent4</flowNodeRef>
+        <flowNodeRef>mark_as_obsolete</flowNodeRef>
+        <flowNodeRef>exclusivegateway3</flowNodeRef>
+        <flowNodeRef>endevent5</flowNodeRef>
+        <flowNodeRef>access_updated</flowNodeRef>
+        <flowNodeRef>mailtask1</flowNodeRef>
+        <flowNodeRef>mailtask2</flowNodeRef>
+      </lane>
+    </laneSet>
+    <startEvent id="startevent1" name="Start" activiti:initiator="requester">
+      <extensionElements>
+        <activiti:formProperty id="assetId" name="Asset ID" type="string" required="true"></activiti:formProperty>
+        <activiti:formProperty id="accessGrantedStatusTypeUuid" name="Access Granted Status Type UUID" type="string" default="00000000-0000-0000-0000-000000005024" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="rejectedStatusTypeUuid" name="Rejected Status Type UUID" type="string" default="00000000-0000-0000-0000-000000005010" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="apiUserExpression" name="API User Expression" type="string" default="group(Admin_group)" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_nr_of_extensions" name="Please fill in the UUID of the attribute Number of Data Request Extensions" type="string" default="a2e49066-4e8d-4a3d-9a85-0cd294e24b8e" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_data_analysis_responsibility" name="Please fill in the UUID of the role that the requester will become on the data set (by default data anlyst)" type="string" default="a723b1c6-54f6-4f3d-ba9b-48c11c515928" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="type" name="type" type="string" default="Add"></activiti:formProperty>
+        <activiti:formProperty id="effective_end_date" name="effective_end_date" type="string" default="20220320" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="effective_start_date" name="effective_start_date" type="string" default="20211220" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="feedback" name="feedback" type="string" default="access_granted" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_integration_status" name="Please fill in the UUID of the attribute integration status" type="string" default="3d21215c-e96b-4354-b46e-42d338cab457" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_role_data_owner" name="Please fill in the UUID of the data owner role in Collibra" type="string" default="433308b4-dbe0-40af-95d7-b34ad207abbe" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="environment_full" name="Please fill in the full name of the environment" type="string" default="Development" readable="false" required="true"></activiti:formProperty>
+        <activiti:formProperty id="uuid_relation_security_asset" name="please fill in the uuid of the relation secured by security asset" type="string" default="0c0b2c75-77f3-4099-9c9c-77a7981aad60" readable="false" required="true"></activiti:formProperty>
+      </extensionElements>
+    </startEvent>
+    <scriptTask id="init_variables" name="Init Variables" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.dto.instance.comment.AddCommentRequest
+import com.collibra.dgc.core.api.dto.instance.attribute.FindAttributesRequest
+import com.collibra.dgc.core.api.dto.instance.attribute.ChangeAttributeRequest
+import com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest
+import com.collibra.dgc.core.api.dto.instance.responsibility.FindResponsibilitiesRequest
+
+loggerApi.info("&lt;&lt;Init Variables: start")
+
+def assetId = execution.getVariable("assetId");
+def requester = execution.getVariable("requester");
+def dataset_uuid = execution.getVariable("dataset_uuid");
+def base_url = ""
+def data_owner = ""
+def requester_email = userApi.getUserByUsername(requester).getEmailAddress()
+def data_owner_name = ""
+
+
+execution.setVariable("processInstanceId", execution.processInstanceId);
+execution.setVariable("ticket_id",assetId);
+execution.setVariable("dataset_uuid", dataset_uuid);
+execution.setVariable("base_url",applicationApi.getInfo().getBaseUrl())
+execution.setVariable("requester_email",requester_email)
+
+
+
+//get the owner of the dataset
+//Get the dataowner of the dataset
+if (!responsibilityApi.findResponsibilities(FindResponsibilitiesRequest.builder()
+										.resourceIds([dataset_uuid])
+										.roleIds([string2Uuid(uuid_role_data_owner)]) //data owner
+										.build()
+										).getResults().isEmpty() )
+{
+data_owner = responsibilityApi.findResponsibilities(FindResponsibilitiesRequest.builder()
+										.resourceIds([dataset_uuid])
+										.roleIds([string2Uuid(uuid_role_data_owner)]) //data owner
+										.build()
+										).getResults().get(0)
+data_owner.each
+	{
+	assignedResponsibility -&gt; data_owner_name = userApi.getUser(assignedResponsibility.getOwner().getId()).getFirstName() + " " + userApi.getUser(assignedResponsibility.getOwner().getId()).getLastName()
+	}
+}
+
+
+execution.setVariable("data_owner_name", data_owner_name);
+
+
+//We create and or update an attribute in the ticket asset: integration_status
+if(!attributeApi.findAttributes(FindAttributesRequest.builder()
+								.assetId(string2Uuid(ticket_id))
+								.typeIds([string2Uuid(uuid_integration_status)])
+								.build()).getResults().isEmpty())
+	
+			{
+			def existingAttributeId = attributeApi.findAttributes(FindAttributesRequest.builder()
+													.assetId(string2Uuid(ticket_id))
+													.typeIds([string2Uuid(uuid_integration_status)])
+													.build()).getResults().get(0).getId()
+			attributeApi.changeAttribute(ChangeAttributeRequest.builder()
+												.id(existingAttributeId)
+												.value("New")
+												.build())
+	
+			}
+else
+	
+			{
+				attributeApi.addAttribute(AddAttributeRequest.builder()
+											.assetId(string2Uuid(ticket_id))
+											.typeId(string2Uuid(uuid_integration_status))
+											.value("New")
+											.build())
+			}
+	
+loggerApi.info("&lt;&lt;Init Variables: end")</script>
+    </scriptTask>
+    <userTask id="usertaskPolling" name="User task polling" activiti:candidateUsers="${apiUserExpression}">
+      <extensionElements>
+        <activiti:formProperty id="processInstanceId" name="processInstanceId" type="string" default="${processInstanceId}"></activiti:formProperty>
+        <activiti:formProperty id="ticket_id" name="Ticket Id" type="string" default="${ticket_id}"></activiti:formProperty>
+        <activiti:formProperty id="type" name="Type" type="string" default="${type}" required="true"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <intermediateCatchEvent id="messageintermediatecatchevent1" name="MessageCatchEvent">
+      <messageEventDefinition messageRef="gatewayMessageId"></messageEventDefinition>
+    </intermediateCatchEvent>
+    <sequenceFlow id="flow72" sourceRef="messageintermediatecatchevent1" targetRef="processMessageResponse"></sequenceFlow>
+    <scriptTask id="processMessageResponse" name="Process message response" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>loggerApi.info("&lt;&lt;Process Message Response: start")
+
+loggerApi.info("response-status: " + status)
+loggerApi.info("response-effective_start_date: " + effective_start_date)
+loggerApi.info("response-effective_end_date: " + effective_end_date)
+loggerApi.info("response-feedback: " + feedback)
+
+loggerApi.info("&lt;&lt;Process Message Response: end")
+</script>
+    </scriptTask>
+    <sequenceFlow id="flow73" sourceRef="processMessageResponse" targetRef="exclusivegateway1"></sequenceFlow>
+    <scriptTask id="markAsAccessGranted" name="Mark as access granted" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest
+import com.collibra.dgc.core.api.dto.instance.attribute.ChangeAttributeRequest
+import com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest
+import com.collibra.dgc.core.api.model.ResourceType
+import com.collibra.dgc.core.api.dto.instance.attribute.FindAttributesRequest
+import com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest
+import com.collibra.dgc.core.api.dto.instance.comment.AddCommentRequest
+import com.collibra.dgc.core.api.dto.instance.relation.FindRelationsRequest
+
+import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
+
+//init variables
+Date date
+String str
+def security_role = ""
+
+loggerApi.info("&lt;&lt;Mark as granted: start")
+
+//Update the status to 'Access Granted'
+def changedAsset = assetApi.changeAsset(ChangeAssetRequest.builder()
+					.id(string2Uuid(assetId))
+					.statusId(string2Uuid("00000000-0000-0000-0000-000000005024"))
+					.build())
+
+//The requestor will become a Data Analyst (variable role) of the dataset
+responsibilityApi.addResponsibility(AddResponsibilityRequest.builder()
+					.ownerId(userApi.getUserByUsername(requester).getId())
+					.resourceId(string2Uuid(dataset_uuid))
+					.roleId(string2Uuid(uuid_data_analysis_responsibility))//by default - Data analyst
+					.resourceType(ResourceType.valueOf("Asset"))
+					.build())
+
+
+//Get the number of extensions and add 1 if it already exists; If not it will become 0
+if(!attributeApi.findAttributes(FindAttributesRequest.builder()
+										.assetId(string2Uuid(assetId))
+										.typeIds([string2Uuid(uuid_nr_of_extensions)])
+										.build()
+										).getResults().isEmpty())
+	{
+	def existingAttributeId = attributeApi.findAttributes(FindAttributesRequest.builder()
+										.assetId(string2Uuid(assetId))
+										.typeIds([string2Uuid(uuid_nr_of_extensions)])
+										.build()
+										).getResults().get(0).getId()
+
+	def existingAttributeValue = attributeApi.findAttributes(FindAttributesRequest.builder()
+		.assetId(string2Uuid(assetId))
+		.typeIds([string2Uuid(uuid_nr_of_extensions)])
+		.build()
+		).getResults().get(0).getValue()
+											
+		attributeApi.changeAttribute(ChangeAttributeRequest.builder()
+									.id(existingAttributeId)
+									.value(existingAttributeValue + 1)
+									.build())
+	}
+		else
+		{
+		attributeApi.addAttribute(AddAttributeRequest.builder()
+								.assetId(string2Uuid(assetId))
+								.typeId(string2Uuid(uuid_nr_of_extensions))
+								.value(0)
+								.build())
+		}
+		
+//To complete the mail; get the security_role
+if (!relationApi.findRelations(FindRelationsRequest.builder()
+			.relationTypeId(string2Uuid(uuid_relation_security_asset))
+			.targetId(string2Uuid(dataset_uuid))
+			.build()).getResults().isEmpty())
+	{
+		security_role = relationApi.findRelations(FindRelationsRequest.builder()
+									.relationTypeId(string2Uuid(uuid_relation_security_asset))
+									.targetId(string2Uuid(dataset_uuid))
+									.build()).getResults()[0].getSource().getName()
+									
+	}
+		
+		
+//Function to change a value
+def change_value(asset_uuid,attribute_type_uuid,value){
+	if(!attributeApi.findAttributes(FindAttributesRequest.builder()
+		.assetId(asset_uuid)
+		.typeIds([attribute_type_uuid])
+		.build()
+		).getResults().isEmpty())
+	{
+		def existingAttributeId = attributeApi.findAttributes(FindAttributesRequest.builder()
+									.assetId(asset_uuid)
+									.typeIds([attribute_type_uuid])
+									.build()
+									).getResults().get(0).getId()
+
+		def existingAttributeValue = attributeApi.findAttributes(FindAttributesRequest.builder()
+										.assetId(asset_uuid)
+										.typeIds([attribute_type_uuid])
+										.build()
+										).getResults().get(0).getValue()
+		
+				attributeApi.changeAttribute(ChangeAttributeRequest.builder()
+							.id(existingAttributeId)
+							.value(value)
+							.build())
+	}
+	else
+	{
+		attributeApi.addAttribute(AddAttributeRequest.builder()
+				.assetId(asset_uuid)
+				.typeId(attribute_type_uuid)
+				.value(value)
+				.build())
+	}
+
+}
+
+//Effective start date
+str = execution.getVariable("effective_start_date")
+str = str + "000000"
+SimpleDateFormat df = new SimpleDateFormat("yyyyMMddhhmmss");
+date = df.parse(str);
+long effective_start_date_long = date.getTime();
+loggerApi.info("effective start date:" + effective_start_date_long.toString())
+change_value(string2Uuid(assetId),string2Uuid("00000000-0000-0000-0000-000000000257"),effective_start_date_long.toString())
+
+
+
+//Effective end date
+str = execution.getVariable("effective_end_date")
+str = str + "000000"
+df = new SimpleDateFormat("yyyyMMddhhmmss");
+date = df.parse(str);
+long effective_end_date_long = date.getTime();
+loggerApi.info("effective end date:" + effective_end_date_long.toString())
+change_value(string2Uuid(assetId),string2Uuid("00000000-0000-0000-0000-000000000254"),effective_end_date_long.toString())
+
+
+//feedback after granting the access
+feedback = execution.getVariable("feedback")
+if(feedback.toString() != "")
+	{
+	commentApi.addComment(AddCommentRequest.builder()
+										.baseResourceId(string2Uuid(assetId))
+										.baseResourceType(ResourceType.valueOf("Asset"))
+										.content(feedback.toString())
+										.build())
+	}
+
+//Save variables
+execution.setVariable("security_role",security_role);
+		
+loggerApi.info("&lt;&lt;Mark as granted: end")</script>
+    </scriptTask>
+    <exclusiveGateway id="exclusivegateway1" name="Exclusive Gateway"></exclusiveGateway>
+    <sequenceFlow id="flow74" sourceRef="exclusivegateway1" targetRef="markAsAccessGranted">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${type != "Delete" && status == "OK"}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow77" sourceRef="exclusivegateway1" targetRef="markAsRejected">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${type != "Delete" && status != "OK"}]]></conditionExpression>
+    </sequenceFlow>
+    <scriptTask id="markAsRejected" name="Mark as rejected" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest
+import com.collibra.dgc.core.api.model.ResourceType
+import com.collibra.dgc.core.api.dto.instance.comment.AddCommentRequest
+
+loggerApi.info("&lt;&lt;Mark as rejected: start")
+def changedAsset = assetApi.changeAsset(ChangeAssetRequest.builder()
+					.id(string2Uuid(assetId))
+					.statusId(string2Uuid("00000000-0000-0000-0000-000000005010"))
+					.build())
+
+//feedback after granting the access
+feedback = execution.getVariable("feedback")
+if(feedback.toString() != "")
+	{
+	commentApi.addComment(AddCommentRequest.builder()
+										.baseResourceId(string2Uuid(assetId))
+										.baseResourceType(ResourceType.valueOf("Asset"))
+										.content(feedback.toString())
+										.build())
+	}
+
+
+loggerApi.info("&lt;&lt;Mark as rejected: end")</script>
+    </scriptTask>
+    <sequenceFlow id="flow80" sourceRef="startevent1" targetRef="init_variables"></sequenceFlow>
+    <userTask id="access_granted" name="Granted Access to Your Data Set" activiti:candidateUsers="user(${requester})">
+      <documentation>Dear ${dataRequester_name},&lt;br&gt;&lt;br&gt; your access to data set ${dataset_name} has been granted.</documentation>
+      <extensionElements>
+        <activiti:formProperty id="ok" name="OK" type="button" required="true"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <endEvent id="endevent2" name="End"></endEvent>
+    <sequenceFlow id="flow85" sourceRef="usertaskPolling" targetRef="messageintermediatecatchevent1"></sequenceFlow>
+    <userTask id="access_rejected" name="Rejected Access to Your Data Set" activiti:candidateUsers="user(${requester})">
+      <documentation>Dear ${dataRequester_name},&lt;br&gt;&lt;br&gt; your access to data set ${dataset_name} has been rejected.</documentation>
+      <extensionElements>
+        <activiti:formProperty id="ok" name="OK" type="button" required="true"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <sequenceFlow id="flow89" sourceRef="markAsRejected" targetRef="access_rejected"></sequenceFlow>
+    <endEvent id="endevent3" name="End"></endEvent>
+    <sequenceFlow id="flow90" sourceRef="access_rejected" targetRef="endevent3"></sequenceFlow>
+    <userTask id="access_revoked" name="Access Revoked" activiti:candidateUsers="user(${requester})">
+      <documentation>Dear ${dataRequester_name}&lt;br&gt;&lt;br&gt;
+Your access on ${dataset_name} has been revoked. If you want access again, you can create a new access request.</documentation>
+      <extensionElements>
+        <activiti:formProperty id="ok" name="OK" type="button" required="true"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <endEvent id="endevent4" name="End"></endEvent>
+    <scriptTask id="mark_as_obsolete" name="Mark As Obsolete" scriptFormat="groovy" activiti:autoStoreVariables="false">
+      <script>import com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest
+import com.collibra.dgc.core.api.model.ResourceType
+import com.collibra.dgc.core.api.dto.instance.attribute.FindAttributesRequest
+import com.collibra.dgc.core.api.dto.instance.comment.AddCommentRequest
+import com.collibra.dgc.core.api.dto.instance.responsibility.FindResponsibilitiesRequest
+import com.collibra.dgc.core.api.dto.instance.attribute.ChangeAttributeRequest
+import com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest
+
+
+import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
+
+loggerApi.info("&lt;&lt;Mark as obsolete: start")
+def changedAsset = assetApi.changeAsset(ChangeAssetRequest.builder()
+					.id(string2Uuid(assetId))
+					.statusId(string2Uuid("00000000-0000-0000-0000-000000005011"))//status obsolete
+					.build())
+
+//The requestor may not longer be a Data Analyst of the dataset
+def assignedResponsibilities = responsibilityApi.findResponsibilities(FindResponsibilitiesRequest.builder()
+															.resourceIds([string2Uuid(dataset_uuid)])
+															.roleIds([string2Uuid(uuid_data_analysis_responsibility)])//by default - Data analyst
+															.ownerIds([userApi.getUserByUsername(requester).getId()])
+															.build()
+															).getResults()
+assignedResponsibilities.each{
+		responsibilities -&gt; responsibilityApi.removeResponsibility(responsibilities.getId())
+}
+
+//Function to change a value
+def change_value(asset_uuid,attribute_type_uuid,value){
+	if(!attributeApi.findAttributes(FindAttributesRequest.builder()
+		.assetId(asset_uuid)
+		.typeIds([attribute_type_uuid])
+		.build()
+		).getResults().isEmpty())
+	{
+		def existingAttributeId = attributeApi.findAttributes(FindAttributesRequest.builder()
+									.assetId(asset_uuid)
+									.typeIds([attribute_type_uuid])
+									.build()
+									).getResults().get(0).getId()
+
+		def existingAttributeValue = attributeApi.findAttributes(FindAttributesRequest.builder()
+										.assetId(asset_uuid)
+										.typeIds([attribute_type_uuid])
+										.build()
+										).getResults().get(0).getValue()
+		
+				attributeApi.changeAttribute(ChangeAttributeRequest.builder()
+							.id(existingAttributeId)
+							.value(value)
+							.build())
+	}
+	else
+	{
+		attributeApi.addAttribute(AddAttributeRequest.builder()
+				.assetId(asset_uuid)
+				.typeId(attribute_type_uuid)
+				.value(value)
+				.build())
+	}
+
+}
+
+//Effective end date
+str = execution.getVariable("effective_end_date")
+str = str + "000000"
+df = new SimpleDateFormat("yyyyMMddhhmmss");
+date = df.parse(str);
+long effective_end_date_long = date.getTime();
+loggerApi.info("effective end date:" + effective_end_date_long.toString())
+change_value(string2Uuid(assetId),string2Uuid("00000000-0000-0000-0000-000000000254"),effective_end_date_long.toString())
+
+
+//feedback after revoking the access
+def feedback = execution.getVariable("feedback")
+if(feedback.toString() != "")
+	{
+	commentApi.addComment(AddCommentRequest.builder()
+										.baseResourceId(string2Uuid(assetId))
+										.baseResourceType(ResourceType.valueOf("Asset"))
+										.content(feedback.toString())
+										.build())
+	}
+
+
+loggerApi.info("&lt;&lt;Mark as obsolete: end")</script>
+    </scriptTask>
+    <sequenceFlow id="flow93" sourceRef="exclusivegateway1" targetRef="mark_as_obsolete">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${type == "Delete"}]]></conditionExpression>
+    </sequenceFlow>
+    <exclusiveGateway id="exclusivegateway3" name="Exclusive Gateway"></exclusiveGateway>
+    <sequenceFlow id="flow95" sourceRef="markAsAccessGranted" targetRef="exclusivegateway3"></sequenceFlow>
+    <userTask id="access_updated" name="Updated Access to Your Data Set" activiti:candidateUsers="user(${requester})">
+      <documentation>Dear ${dataRequester_name},&lt;br&gt;&lt;br&gt; your access to data set ${dataset_name} has been updated.</documentation>
+      <extensionElements>
+        <activiti:formProperty id="ok" name="OK" type="button" required="true"></activiti:formProperty>
+      </extensionElements>
+    </userTask>
+    <sequenceFlow id="flow97" sourceRef="exclusivegateway3" targetRef="access_updated">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${type == "Update"}]]></conditionExpression>
+    </sequenceFlow>
+    <endEvent id="endevent5" name="End"></endEvent>
+    <sequenceFlow id="flow98" sourceRef="access_updated" targetRef="endevent5"></sequenceFlow>
+    <sequenceFlow id="flow100" sourceRef="init_variables" targetRef="usertaskPolling"></sequenceFlow>
+    <serviceTask id="mailtask1" name="Mail Task" activiti:type="mail">
+      <extensionElements>
+        <activiti:field name="to">
+          <activiti:expression><![CDATA[${requester_email}]]></activiti:expression>
+        </activiti:field>
+        <activiti:field name="html">
+          <activiti:expression><![CDATA[<p style="padding-right:0;font-size: 15px;color:#8c8c8c" align="left";>Hello, this e-mail was automatically generated by ${environment_full} environment of Business Data Catalogue (${base_url}).</p>
+<br><br>
+<b>Your data access has been granted</b>
+<br><br>
+Dear ${dataRequester_name},
+<br><br>
+Congratulations! You've been granted access to the data set <a href='${base_url}/asset/${dataset_uuid}'><i>${dataset_name}</i></a>. The associated data access request ticket is <a href='${base_url}/asset/${item.id}'>${item.name}</a>.
+<br>
+<br>
+Please review the <a href='${base_url}/asset/${dataset_uuid}'>${dataset_name}</a> and to learn
+about applicable business definitions, AD group (also known as the Snowflake role) that you should
+use for access, and any other information provided by the Data Owner ${data_owner_name}.
+<br>
+<br>
+Data Set <a href='${base_url}asset/${dataset_uuid}'>${dataset_name}</a> is accessible in
+Snowflake (https://ac70641.eu-west-1.snowflakecomputing.com/), using the snowflake role ${security_role}.
+If you have not used Snowflake before, please visit the <a href ='https://reedelsevier.sharepoint.com/sites/ElsevierAnalyticsCentreofExcellenceACE/SitePages/Snowflake-Guild.aspx'> Elsevier Snowflake Guild </a> where you can find
+<a href='https://reedelsevier.sharepoint.com/sites/ElsevierAnalyticsCentreofExcellenceACE/SitePages/Snowflake-Beginner-Training.aspx'> beginner training</a> and <a href = 'https://reedelsevier.sharepoint.com/sites/ElsevierAnalyticsCentreofExcellenceACE/SitePages/Connecting-to-Snowflake.aspx'>guides to connect Snowflake with third party tools</a> such as Knime, Tableau &
+DBeaver. <br>
+Please also join our <a href = 'https://teams.microsoft.com/l/team/19%3a31cca60810b04fd6a91abe4dc931e61e%40thread.skype/conversations?groupId=a3da7e2d-e1aa-4788-90c5-3a9d36b2d81b&tenantId=9274ee3f-9425-4109-a27f-9fb15c10675d'>Elsevier Analytics community</a>. Here you can ask questions to the community on
+our BI tools such as Snowflake, Knime & Tableau, receive central updates, expand your network and
+learn what other Analytics teams are working on.
+<br>
+<br>
+<b>How to get support?</b>
+<br>
+<br>
+If you have problems connecting to Snowflake using any third party tools, please contact
+businessanalytics@elsevier.com for support.
+<br><br>
+In case the role associated with the dataset is not available to you, please allow an hour after this notification for Snowflake roles to update before contacting  <a href='https://techdesk.elsevier.net/support/catalog/items/911'>TechDesk</a>.
+<br><br>
+
+<html>
+<body>
+<table width = 100%>
+	<tr>
+		<td style="padding-right:0;font-size: 15px;color:#8c8c8c"; align="left">
+					For specific technical and business questions please contact the team via BSDC@elsevier.com or submit a <a href="https://techdesk.elsevier.net/support/catalog/items/911" target="_blank" style="color:#0072bc;text-decoration:none">TechDesk ticket.</a>
+				</td>
+	</tr>
+	<tr>
+		<td style="padding-right:0;font-size: 15px;color:#8c8c8c"; align="left">
+						Learn more about the platform on the <a href="https://reedelsevier.sharepoint.com/sites/BusinessDataCatalog/SitePages/Business-Data-Catalog%20Landing%20Page.aspx?csf=1&web=1&e=cdZpGu&cid=9f495b5d-5595-4c49-a1a5-b3aae083738e" target="_blank" style="color:#0072bc;text-decoration:none">BDC 					sharepoint</a> and join our community on <a href="https://teams.microsoft.com/l/team/19%3a211b0be010704b20ad69f99cfb07846b%40thread.tacv2/conversations?					groupId=4e7a8496-de29-42da-a68a-329bbc91d192&tenantId=9274ee3f-9425-4109-a27f-9fb15c10675d" target="_blank" style="color:#0072bc;text-decoration:none">Microsoft 				Teams.</a>
+			</td>
+	</tr>
+	<tr style="text-align:center">
+		 <td style="font-size: 15px; padding:40px 10px 20px 10px;color:#8c8c8c">
+						Generated by ${base_url}
+				 </td>
+		</tr>
+		<tr style="text-align:center">
+				 <td>
+						 <img src="${base_url}/resources/images/datacatalog_logo.png" border="0" height="45">
+						 <img src="${base_url}/resources/images/signinLogo.png" border="0" height="45">
+				 </td>
+		</tr>
+</table>
+</body>
+</html>]]></activiti:expression>
+        </activiti:field>
+        <activiti:field name="subject">
+          <activiti:expression><![CDATA[Data set ${dataset_name}: you now have access in Snowflake]]></activiti:expression>
+        </activiti:field>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="flow104" sourceRef="access_granted" targetRef="endevent2"></sequenceFlow>
+    <serviceTask id="mailtask2" name="Mail Task" activiti:type="mail">
+      <extensionElements>
+        <activiti:field name="subject">
+          <activiti:expression><![CDATA[Data set ${dataset_name}: you no longer have access in Snowflake]]></activiti:expression>
+        </activiti:field>
+        <activiti:field name="to">
+          <activiti:expression><![CDATA[${requester_email}]]></activiti:expression>
+        </activiti:field>
+        <activiti:field name="html">
+          <activiti:expression><![CDATA[<p style="padding-right:0;font-size: 15px;color:#8c8c8c" align="left";>Hello, this e-mail was automatically generated by ${environment_full} environment of Business Data 
+Catalogue (${base_url}). </p>
+<br><br>
+<b>Your data access has ended</b> 
+<br><br>
+Dear ${dataRequester_name}, 
+<br><br>
+Your access period for the data set <a href='${base_url}/asset/${dataset_uuid}'><i>${dataset_name}</i></a> with the associated data access request ticket <a href='https://${base_url}/${item.id}'>${item.name}</a> has <b>ended</b>.
+<br><br>
+Should you require longer term access to the data set <a href='${base_url}/asset/${dataset_uuid}'>${dataset_name}</a>, please contact Data Owner ${data_owner_name} to gain operational access to the data set. 
+<br><br>
+Otherwise, feel free to ignore this automated e-mail notification and hope you will find other interesting data sets in the Business Data Catalogue. 
+
+<br><br>
+
+<html>
+<body>
+<table width = 100%>
+	<tr>
+		<td style="padding-right:0;font-size: 15px;color:#8c8c8c"; align="left">
+                	For specific technical and business questions please contact the team via BSDC@elsevier.com or submit a <a href="https://techdesk.elsevier.net/support/catalog/items/911" target="_blank" style="color:#0072bc;text-decoration:none">TechDesk ticket.</a>
+                </td>
+	</tr>
+	<tr>
+		<td style="padding-right:0;font-size: 15px;color:#8c8c8c"; align="left">
+                        Learn more about the platform on the <a href="https://reedelsevier.sharepoint.com/sites/BusinessDataCatalog/SitePages/Business-Data-Catalog%20Landing%20Page.aspx?csf=1&web=1&e=cdZpGu&cid=9f495b5d-5595-4c49-a1a5-b3aae083738e" target="_blank" style="color:#0072bc;text-decoration:none">BDC 					sharepoint</a> and join our community on <a href="https://teams.microsoft.com/l/team/19%3a211b0be010704b20ad69f99cfb07846b%40thread.tacv2/conversations?					groupId=4e7a8496-de29-42da-a68a-329bbc91d192&tenantId=9274ee3f-9425-4109-a27f-9fb15c10675d" target="_blank" style="color:#0072bc;text-decoration:none">Microsoft 				Teams.</a>
+        	</td>
+	</tr>
+	<tr style="text-align:center">
+		 <td style="font-size: 15px; padding:40px 10px 20px 10px;color:#8c8c8c">
+                        Generated by ${base_url}
+                 </td>
+        </tr>
+        <tr style="text-align:center">
+                 <td>
+                         <img src="${base_url}/resources/images/datacatalog_logo.png" border="0" height="45">
+                         <img src="${base_url}/resources/images/signinLogo.png" border="0" height="45">
+                 </td>
+        </tr>
+</table>
+</body>
+</html>]]></activiti:expression>
+        </activiti:field>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="flow107" sourceRef="mark_as_obsolete" targetRef="mailtask2"></sequenceFlow>
+    <sequenceFlow id="flow108" sourceRef="mailtask2" targetRef="access_revoked"></sequenceFlow>
+    <sequenceFlow id="flow109" sourceRef="access_revoked" targetRef="endevent4"></sequenceFlow>
+    <sequenceFlow id="flow110" sourceRef="exclusivegateway3" targetRef="mailtask1">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${type == "Add"}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow111" sourceRef="mailtask1" targetRef="access_granted"></sequenceFlow>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Collaboration">
+    <bpmndi:BPMNPlane bpmnElement="Collaboration" id="BPMNPlane_Collaboration">
+      <bpmndi:BPMNShape bpmnElement="pool1" id="BPMNShape_pool1">
+        <omgdc:Bounds height="530.0" width="1291.0" x="0.0" y="61.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="lane1" id="BPMNShape_lane1">
+        <omgdc:Bounds height="530.0" width="1271.0" x="20.0" y="61.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="startevent1" id="BPMNShape_startevent1">
+        <omgdc:Bounds height="35.0" width="35.0" x="60.0" y="284.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="init_variables" id="BPMNShape_init_variables">
+        <omgdc:Bounds height="61.0" width="105.0" x="130.0" y="271.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="usertaskPolling" id="BPMNShape_usertaskPolling">
+        <omgdc:Bounds height="55.0" width="105.0" x="300.0" y="274.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="messageintermediatecatchevent1" id="BPMNShape_messageintermediatecatchevent1">
+        <omgdc:Bounds height="35.0" width="35.0" x="450.0" y="284.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="processMessageResponse" id="BPMNShape_processMessageResponse">
+        <omgdc:Bounds height="81.0" width="105.0" x="500.0" y="387.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="markAsAccessGranted" id="BPMNShape_markAsAccessGranted">
+        <omgdc:Bounds height="71.0" width="105.0" x="628.0" y="203.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway1" id="BPMNShape_exclusivegateway1">
+        <omgdc:Bounds height="40.0" width="40.0" x="660.0" y="407.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="markAsRejected" id="BPMNShape_markAsRejected">
+        <omgdc:Bounds height="71.0" width="105.0" x="628.0" y="480.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="access_granted" id="BPMNShape_access_granted">
+        <omgdc:Bounds height="72.0" width="105.0" x="1020.0" y="203.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent2" id="BPMNShape_endevent2">
+        <omgdc:Bounds height="35.0" width="35.0" x="1160.0" y="221.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="access_rejected" id="BPMNShape_access_rejected">
+        <omgdc:Bounds height="71.0" width="105.0" x="750.0" y="480.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent3" id="BPMNShape_endevent3">
+        <omgdc:Bounds height="35.0" width="35.0" x="1160.0" y="498.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="access_revoked" id="BPMNShape_access_revoked">
+        <omgdc:Bounds height="55.0" width="105.0" x="1030.0" y="400.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent4" id="BPMNShape_endevent4">
+        <omgdc:Bounds height="35.0" width="35.0" x="1160.0" y="410.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="mark_as_obsolete" id="BPMNShape_mark_as_obsolete">
+        <omgdc:Bounds height="55.0" width="105.0" x="750.0" y="400.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="exclusivegateway3" id="BPMNShape_exclusivegateway3">
+        <omgdc:Bounds height="40.0" width="40.0" x="778.0" y="218.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="access_updated" id="BPMNShape_access_updated">
+        <omgdc:Bounds height="61.0" width="105.0" x="930.0" y="90.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endevent5" id="BPMNShape_endevent5">
+        <omgdc:Bounds height="35.0" width="35.0" x="1160.0" y="103.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="mailtask1" id="BPMNShape_mailtask1">
+        <omgdc:Bounds height="55.0" width="105.0" x="880.0" y="211.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="mailtask2" id="BPMNShape_mailtask2">
+        <omgdc:Bounds height="55.0" width="105.0" x="890.0" y="400.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="flow72" id="BPMNEdge_flow72">
+        <omgdi:waypoint x="467.0" y="319.0"></omgdi:waypoint>
+        <omgdi:waypoint x="467.0" y="427.0"></omgdi:waypoint>
+        <omgdi:waypoint x="500.0" y="427.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow73" id="BPMNEdge_flow73">
+        <omgdi:waypoint x="605.0" y="427.0"></omgdi:waypoint>
+        <omgdi:waypoint x="660.0" y="427.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow74" id="BPMNEdge_flow74">
+        <omgdi:waypoint x="680.0" y="407.0"></omgdi:waypoint>
+        <omgdi:waypoint x="680.0" y="274.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow77" id="BPMNEdge_flow77">
+        <omgdi:waypoint x="680.0" y="447.0"></omgdi:waypoint>
+        <omgdi:waypoint x="680.0" y="480.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow80" id="BPMNEdge_flow80">
+        <omgdi:waypoint x="95.0" y="301.0"></omgdi:waypoint>
+        <omgdi:waypoint x="130.0" y="301.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow85" id="BPMNEdge_flow85">
+        <omgdi:waypoint x="405.0" y="301.0"></omgdi:waypoint>
+        <omgdi:waypoint x="450.0" y="301.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow89" id="BPMNEdge_flow89">
+        <omgdi:waypoint x="733.0" y="515.0"></omgdi:waypoint>
+        <omgdi:waypoint x="750.0" y="515.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow90" id="BPMNEdge_flow90">
+        <omgdi:waypoint x="855.0" y="515.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1160.0" y="515.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow93" id="BPMNEdge_flow93">
+        <omgdi:waypoint x="700.0" y="427.0"></omgdi:waypoint>
+        <omgdi:waypoint x="750.0" y="427.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow95" id="BPMNEdge_flow95">
+        <omgdi:waypoint x="733.0" y="238.0"></omgdi:waypoint>
+        <omgdi:waypoint x="778.0" y="238.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow97" id="BPMNEdge_flow97">
+        <omgdi:waypoint x="798.0" y="218.0"></omgdi:waypoint>
+        <omgdi:waypoint x="798.0" y="120.0"></omgdi:waypoint>
+        <omgdi:waypoint x="930.0" y="120.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow98" id="BPMNEdge_flow98">
+        <omgdi:waypoint x="1035.0" y="120.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1160.0" y="120.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow100" id="BPMNEdge_flow100">
+        <omgdi:waypoint x="235.0" y="301.0"></omgdi:waypoint>
+        <omgdi:waypoint x="300.0" y="301.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow104" id="BPMNEdge_flow104">
+        <omgdi:waypoint x="1125.0" y="239.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1160.0" y="238.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow107" id="BPMNEdge_flow107">
+        <omgdi:waypoint x="855.0" y="427.0"></omgdi:waypoint>
+        <omgdi:waypoint x="890.0" y="427.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow108" id="BPMNEdge_flow108">
+        <omgdi:waypoint x="995.0" y="427.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1030.0" y="427.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow109" id="BPMNEdge_flow109">
+        <omgdi:waypoint x="1135.0" y="427.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1160.0" y="427.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow110" id="BPMNEdge_flow110">
+        <omgdi:waypoint x="818.0" y="238.0"></omgdi:waypoint>
+        <omgdi:waypoint x="880.0" y="238.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flow111" id="BPMNEdge_flow111">
+        <omgdi:waypoint x="985.0" y="238.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1020.0" y="239.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
